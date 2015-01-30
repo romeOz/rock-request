@@ -41,12 +41,21 @@ use rock\sanitize\Sanitize;
  * @property array $acceptableLanguages The languages ordered by the preference level. The first element
  * represents the most preferred language.
  *
+ * @method static Request get($name, $default = null, Sanitize $sanitize = null)
+ * @method static Request post($name, $default = null, Sanitize $sanitize = null)
+ * @method static Request put($name, $default = null, Sanitize $sanitize = null)
+ * @method static Request delete($name, $default = null, Sanitize $sanitize = null)
+ * @method static Request getAll(Sanitize $sanitize = null)
+ * @method static Request postAll(Sanitize $sanitize = null)
+ * @method static Request putAll(Sanitize $sanitize = null)
+ * @method static Request deleteAll(Sanitize $sanitize = null)
+ *
  * @package rock\request
  */
 class Request implements RequestInterface, ObjectInterface
 {
     use ObjectTrait {
-        ObjectTrait::__construct as parentConstruct;
+        ObjectTrait::__call as parentCall;
     }
 
     /**
@@ -69,13 +78,20 @@ class Request implements RequestInterface, ObjectInterface
      * @var string
      */
     public $locale = 'en';
+    /**
+     * Default sanitize rules.
+     * @var Sanitize
+     */
+    public $defaultSanitize;
 
-    public function __construct($config = [])
+    public function init()
     {
-        $this->parentConstruct($config);
         $this->locale = strtolower($this->locale);
         $this->isSelfDomain(true);
         $this->parseRequest();
+        if (!isset($this->defaultSanitize)) {
+            $this->defaultSanitize = $this->defaultSanitize();
+        }
     }
 
     /**
@@ -85,9 +101,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function get($name, $default = null, Sanitize $sanitize = null)
+    protected function getInternal($name, $default = null, Sanitize $sanitize = null)
     {
-        return static::prepareValue('_GET', $name, $default, $sanitize);
+        return $this->prepareValue('_GET', $name, $default, $sanitize);
     }
 
     /**
@@ -97,9 +113,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function post($name, $default = null, Sanitize $sanitize = null)
+    protected function postInternal($name, $default = null, Sanitize $sanitize = null)
     {
-        return static::prepareValue('_POST', $name, $default, $sanitize);
+        return $this->prepareValue('_POST', $name, $default, $sanitize);
     }
 
     /**
@@ -109,9 +125,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function put($name, $default = null, Sanitize $sanitize = null)
+    protected function putInternal($name, $default = null, Sanitize $sanitize = null)
     {
-        return static::prepareValue('_PUT', $name, $default, $sanitize);
+        return $this->prepareValue('_PUT', $name, $default, $sanitize);
     }
 
     /**
@@ -121,9 +137,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function delete($name, $default = null, Sanitize $sanitize = null)
+    protected function deleteInternal($name, $default = null, Sanitize $sanitize = null)
     {
-        return self::prepareValue('_DELETE', $name, $default, $sanitize);
+        return $this->prepareValue('_DELETE', $name, $default, $sanitize);
     }
 
     /**
@@ -131,9 +147,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function getAll(Sanitize $sanitize = null)
+    protected function getAllInternal(Sanitize $sanitize = null)
     {
-        return static::prepareAll($GLOBALS['_GET'], $sanitize);
+        return $this->prepareAll($GLOBALS['_GET'], $sanitize);
     }
 
     /**
@@ -141,9 +157,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function postAll(Sanitize $sanitize = null)
+    protected function postAllInternal(Sanitize $sanitize = null)
     {
-        return static::prepareAll($GLOBALS['_POST'], $sanitize);
+        return $this->prepareAll($GLOBALS['_POST'], $sanitize);
     }
 
     /**
@@ -151,9 +167,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function putAll(Sanitize $sanitize = null)
+    protected function putAllInternal(Sanitize $sanitize = null)
     {
-        return static::prepareAll($GLOBALS['_PUT'], $sanitize);
+        return $this->prepareAll($GLOBALS['_PUT'], $sanitize);
     }
 
     /**
@@ -161,9 +177,9 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    public static function deleteAll(Sanitize $sanitize = null)
+    protected function deleteAllInternal(Sanitize $sanitize = null)
     {
-        return static::prepareAll($GLOBALS['_DELETE'], $sanitize);
+        return $this->prepareAll($GLOBALS['_DELETE'], $sanitize);
     }
 
     private $_contentTypes;
@@ -1129,6 +1145,38 @@ class Request implements RequestInterface, ObjectInterface
         $this->_homeUrl = $value;
     }
 
+    public function __call($name, $arguments)
+    {
+        if (method_exists($this, "{$name}Internal")) {
+            return call_user_func_array([$this, "{$name}Internal"], $arguments);
+        }
+
+        return $this->parentCall($name, $arguments);
+    }
+
+    public static function __callStatic($name, $arguments)
+    {
+        return call_user_func_array([static::getInstance(static::className()), $name], $arguments);
+    }
+
+    /**
+     * Get instance.
+     *
+     * If exists {@see \rock\di\Container} that uses it.
+     *
+     * @param string|array $config the configuration. It can be either a string representing the class name
+     *                                     or an array representing the object configuration.
+     * @return static
+     * @throws \rock\di\ContainerException
+     */
+    protected static function getInstance($config)
+    {
+        if (class_exists('\rock\di\Container')) {
+            return \rock\di\Container::load($config);
+        }
+        return new static();
+    }
+
     /**
      * Sanitize all request-values.
      *
@@ -1136,13 +1184,13 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    protected static function prepareAll($input, Sanitize $sanitize = null)
+    protected function prepareAll($input, Sanitize $sanitize = null)
     {
         if (empty($input)) {
             return $input;
         }
         if (!isset($sanitize)) {
-            $sanitize = Sanitize::allOf(Sanitize::removeTags()->trim()->toType());
+            $sanitize = Sanitize::allOf($this->defaultSanitize);
         }
         return $sanitize->sanitize($input);
     }
@@ -1156,14 +1204,23 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return null
      */
-    protected static function prepareValue($method, $name, $default = null, Sanitize $sanitize = null)
+    protected function prepareValue($method, $name, $default = null, Sanitize $sanitize = null)
     {
         if (!isset($GLOBALS[$method][$name])) {
             return $default;
         }
         if (!isset($sanitize)) {
-            $sanitize = Sanitize::removeTags()->trim()->toType();
+            $sanitize = $this->defaultSanitize;
         }
         return $sanitize->sanitize($GLOBALS[$method][$name]);
+    }
+
+    /**
+     * Returns default sanitize rules.
+     * @return Sanitize
+     */
+    protected function defaultSanitize()
+    {
+        return Sanitize::removeTags()->trim()->toType();
     }
 }

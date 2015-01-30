@@ -60,7 +60,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     public function testScalarNull()
     {
-        $this->assertNull(Request::get('baz'));
+        $this->assertNull(Request::get('unknown'));
     }
 
     /**
@@ -70,7 +70,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
     {
         $GLOBALS[$httpMethod]['foo'] = ' <b>foo</b>     ';
         $GLOBALS[$httpMethod]['bar'] = '    <b>bar   </b>';
-        $this->assertEquals(['foo' => '<b>foo</b>', 'bar' =>'<b>bar   </b>'], Request::$method(Sanitize::trim()));
+        $this->assertEquals(['foo' => '<b>foo</b>', 'bar' =>'<b>bar   </b>', 'baz' => '<b>-1</b>'], Request::$method(Sanitize::trim()));
     }
 
     public function httpMethodAllProvider()
