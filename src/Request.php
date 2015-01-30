@@ -89,9 +89,6 @@ class Request implements RequestInterface, ObjectInterface
         $this->locale = strtolower($this->locale);
         $this->isSelfDomain(true);
         $this->parseRequest();
-        if (!isset($this->defaultSanitize)) {
-            $this->defaultSanitize = $this->defaultSanitize();
-        }
     }
 
     /**
@@ -1190,6 +1187,9 @@ class Request implements RequestInterface, ObjectInterface
             return $input;
         }
         if (!isset($sanitize)) {
+            if (!isset($this->defaultSanitize)) {
+                $this->defaultSanitize = $this->defaultSanitize();
+            }
             $sanitize = Sanitize::allOf($this->defaultSanitize);
         }
         return $sanitize->sanitize($input);
@@ -1210,6 +1210,9 @@ class Request implements RequestInterface, ObjectInterface
             return $default;
         }
         if (!isset($sanitize)) {
+            if (!isset($this->defaultSanitize)) {
+                $this->defaultSanitize = $this->defaultSanitize();
+            }
             $sanitize = $this->defaultSanitize;
         }
         return $sanitize->sanitize($GLOBALS[$method][$name]);
