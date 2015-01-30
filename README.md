@@ -1,6 +1,15 @@
 A simple HTTP request library for PHP
 =================
 
+[![Latest Stable Version](https://poser.pugx.org/romeOz/rock-request/v/stable.svg)](https://packagist.org/packages/romeOz/rock-request)
+[![Total Downloads](https://poser.pugx.org/romeOz/rock-request/downloads.svg)](https://packagist.org/packages/romeOz/rock-request)
+[![Build Status](https://travis-ci.org/romeOz/rock-request.svg?branch=master)](https://travis-ci.org/romeOz/rock-request)
+[![HHVM Status](http://hhvm.h4cc.de/badge/romeoz/rock-request.svg)](http://hhvm.h4cc.de/package/romeoz/rock-request)
+[![Coverage Status](https://coveralls.io/repos/romeOz/rock-request/badge.svg?branch=master)](https://coveralls.io/r/romeOz/rock-request?branch=master)
+[![License](https://poser.pugx.org/romeOz/rock-request/license.svg)](https://packagist.org/packages/romeOz/rock-request)
+
+[Rock Request on Packagist](https://packagist.org/packages/romeOz/rock-request)
+
 Features
 -------------------
 
@@ -34,6 +43,9 @@ use rock\request\Request;
 
 // returns relative URL
 (new Request)->getUrl(); // output: /foo/?page=1
+
+// returns host
+(new Request)->getHost(); // output: site.com
 ```
 
 ####Sanitize
@@ -43,6 +55,7 @@ use rock\sanitize\Sanitize;
 
 // example url: http://site.com/foo/?page=<b>-1</b>
 
+// default sanitize: Sanitize::removeTags()->trim()->toType(); 
 Request::get('page'); // output: -1
 
 // Add custom sanitize
