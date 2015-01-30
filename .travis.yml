@@ -24,8 +24,6 @@ install:
   - composer self-update && composer --version
   - composer install --prefer-dist
   - composer require satooshi/php-coveralls:*@dev
-  - chmod -R +x tests/data/travis/
-  - tests/data/travis/memcache-setup.sh
 
 script:
   - mkdir -p build/logs
