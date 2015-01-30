@@ -20,9 +20,6 @@ matrix:
   allow_failures:
     - php: hhvm-nightly
 
-services:
-  - memcached
-
 install:
   - composer self-update && composer --version
   - composer install --prefer-dist
