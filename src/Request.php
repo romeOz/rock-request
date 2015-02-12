@@ -404,7 +404,7 @@ class Request implements RequestInterface, ObjectInterface
     public function getETags()
     {
         if (isset($_SERVER['HTTP_IF_NONE_MATCH'])) {
-            return preg_split('/[\s,]+/', $_SERVER['HTTP_IF_NONE_MATCH'], -1, PREG_SPLIT_NO_EMPTY);
+            return preg_split('/[\s,]+/', str_replace('-gzip', '', $_SERVER['HTTP_IF_NONE_MATCH']), -1, PREG_SPLIT_NO_EMPTY);
         } else {
             return [];
         }
