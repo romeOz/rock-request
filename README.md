@@ -13,7 +13,7 @@ A simple HTTP request library for PHP
 Features
 -------------------
 
- * Sanitize (used [Rock Sanitize](https://github.com/romeOz/rock-sanitize))
+ * Sanitize
  * Module for [Rock Framework](https://github.com/romeOz/rock)
 
 Installation
@@ -65,6 +65,7 @@ Request::get('page', null, Sanitize::removeTags()->trim()->positive()); // outpu
 Requirements
 -------------------
  * **PHP 5.4+**
+ * [Rock Sanitize](https://github.com/romeOz/rock-sanitize). Should be installed: `composer require romeoz/rock-sanitize:*`
 
 License
 -------------------
