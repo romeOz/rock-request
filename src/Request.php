@@ -5,6 +5,7 @@ use rock\base\BaseException;
 use rock\base\ObjectInterface;
 use rock\base\ObjectTrait;
 use rock\helpers\Helper;
+use rock\helpers\Instance;
 use rock\helpers\Json;
 use rock\log\Log;
 use rock\sanitize\Sanitize;
@@ -1164,14 +1165,10 @@ class Request implements RequestInterface, ObjectInterface
      * @param string|array $config the configuration. It can be either a string representing the class name
      *                                     or an array representing the object configuration.
      * @return static
-     * @throws \rock\di\ContainerException
      */
     protected static function getInstance($config)
     {
-        if (class_exists('\rock\di\Container')) {
-            return \rock\di\Container::load($config);
-        }
-        return new static();
+        return Instance::ensure($config, static::className());
     }
 
     /**
