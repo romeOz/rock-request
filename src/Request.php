@@ -42,14 +42,14 @@ use rock\sanitize\Sanitize;
  * @property array $acceptableLanguages The languages ordered by the preference level. The first element
  * represents the most preferred language.
  *
- * @method static Request get($name, $default = null, Sanitize $sanitize = null)
- * @method static Request post($name, $default = null, Sanitize $sanitize = null)
- * @method static Request put($name, $default = null, Sanitize $sanitize = null)
- * @method static Request delete($name, $default = null, Sanitize $sanitize = null)
- * @method static Request getAll(Sanitize $sanitize = null)
- * @method static Request postAll(Sanitize $sanitize = null)
- * @method static Request putAll(Sanitize $sanitize = null)
- * @method static Request deleteAll(Sanitize $sanitize = null)
+ * @method static mixed get($name, $default = null, Sanitize $sanitize = null)
+ * @method static mixed post($name, $default = null, Sanitize $sanitize = null)
+ * @method static mixed put($name, $default = null, Sanitize $sanitize = null)
+ * @method static mixed delete($name, $default = null, Sanitize $sanitize = null)
+ * @method static array getAll(Sanitize $sanitize = null)
+ * @method static array postAll(Sanitize $sanitize = null)
+ * @method static array putAll(Sanitize $sanitize = null)
+ * @method static array deleteAll(Sanitize $sanitize = null)
  *
  * @package rock\request
  */
