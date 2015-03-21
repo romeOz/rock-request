@@ -150,7 +150,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $_POST['bar'] = ['foo' => ['  <b>foo</b>'], 'bar' => '{"baz" : "<b>bar</b>baz "}'];
         $_POST['baz'] = '{"foo" : "<b>foo</b>", "bar" : {"foo" : "<b>baz</b>   "}}';
         $_POST['test'] = serialize(['foo' => ['  <b>foo</b>'], 'bar' => '<b>bar</b>baz ']);
-        $result = Request::postAll(Sanitize::allOf(Sanitize::unserialize()->removeTags()->trim()));
+        $result = Request::postAll(Sanitize::attributes(Sanitize::unserialize()->removeTags()->trim()));
         $this->assertEquals('foo', $result['foo']);
         $this->assertEquals(['foo' => ['foo'], 'bar' => ['baz'=>'barbaz']], $result['bar']);
         $this->assertEquals(['foo' => 'foo', 'bar' => ['foo' => 'baz']],$result['baz']);

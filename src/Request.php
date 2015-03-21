@@ -1187,7 +1187,7 @@ class Request implements RequestInterface, ObjectInterface
             if (!isset($this->defaultSanitize)) {
                 $this->defaultSanitize = $this->defaultSanitize();
             }
-            $sanitize = Sanitize::allOf($this->defaultSanitize);
+            $sanitize = Sanitize::attributes($this->defaultSanitize);
         }
         return $sanitize->sanitize($input);
     }
