@@ -83,7 +83,7 @@ class Request implements RequestInterface, ObjectInterface
      * Default sanitize rules.
      * @var Sanitize
      */
-    public $defaultSanitize;
+    public $sanitize;
 
     public function init()
     {
@@ -1116,7 +1116,6 @@ class Request implements RequestInterface, ObjectInterface
         }
     }
 
-
     private $_homeUrl;
 
     /**
@@ -1183,13 +1182,7 @@ class Request implements RequestInterface, ObjectInterface
         if (empty($input)) {
             return $input;
         }
-        if (!isset($sanitize)) {
-            if (!isset($this->defaultSanitize)) {
-                $this->defaultSanitize = $this->defaultSanitize();
-            }
-            $sanitize = Sanitize::attributes($this->defaultSanitize);
-        }
-        return $sanitize->sanitize($input);
+        return $this->sanitize($input, $sanitize);
     }
 
     /**
@@ -1206,21 +1199,23 @@ class Request implements RequestInterface, ObjectInterface
         if (!isset($GLOBALS[$method][$name])) {
             return $default;
         }
-        if (!isset($sanitize)) {
-            if (!isset($this->defaultSanitize)) {
-                $this->defaultSanitize = $this->defaultSanitize();
-            }
-            $sanitize = $this->defaultSanitize;
-        }
-        return $sanitize->sanitize($GLOBALS[$method][$name]);
+        return $this->sanitize($GLOBALS[$method][$name], $sanitize);
     }
 
-    /**
-     * Returns default sanitize rules.
-     * @return Sanitize
-     */
-    protected function defaultSanitize()
+    protected function sanitize($value, Sanitize $sanitize = null)
     {
-        return Sanitize::removeTags()->trim()->toType();
+        if (!isset($sanitize)) {
+            if (isset($this->sanitize)) {
+                $sanitize = $this->sanitize;
+            } else {
+                $sanitize = Sanitize::removeTags()->trim()->toType();
+            }
+
+            if (is_array($value)) {
+                return Sanitize::attributes($sanitize)->sanitize($value);
+            }
+        }
+
+        return $sanitize->sanitize($value);
     }
 }
