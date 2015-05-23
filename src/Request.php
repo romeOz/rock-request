@@ -8,6 +8,7 @@ use rock\helpers\Helper;
 use rock\helpers\Instance;
 use rock\helpers\Json;
 use rock\log\Log;
+use rock\sanitize\Attributes;
 use rock\sanitize\Sanitize;
 
 /**
@@ -1182,7 +1183,16 @@ class Request implements RequestInterface, ObjectInterface
         if (empty($input)) {
             return $input;
         }
-        return $this->sanitize($input, $sanitize);
+        if (!isset($sanitize)) {
+            $sanitize = $this->sanitize ? : Sanitize::removeTags()->trim()->toType();
+        }
+
+        $rawRule = $sanitize->getRawRules();
+        $rawRule = current($rawRule);
+        if ($rawRule instanceof Attributes) {
+            return $sanitize->sanitize($input);
+        }
+        return Sanitize::attributes($sanitize)->sanitize($input);
     }
 
     /**
@@ -1199,23 +1209,21 @@ class Request implements RequestInterface, ObjectInterface
         if (!isset($GLOBALS[$method][$name])) {
             return $default;
         }
-        return $this->sanitize($GLOBALS[$method][$name], $sanitize);
-    }
+        $input = $GLOBALS[$method][$name];
 
-    protected function sanitize($value, Sanitize $sanitize = null)
-    {
         if (!isset($sanitize)) {
-            if (isset($this->sanitize)) {
-                $sanitize = $this->sanitize;
-            } else {
-                $sanitize = Sanitize::removeTags()->trim()->toType();
-            }
-
-            if (is_array($value)) {
-                return Sanitize::attributes($sanitize)->sanitize($value);
-            }
+            $sanitize = $this->sanitize ? : Sanitize::removeTags()->trim()->toType();
         }
 
-        return $sanitize->sanitize($value);
+        if (is_array($input)) {
+            $rawRule = $sanitize->getRawRules();
+            $rawRule = current($rawRule);
+            if ($rawRule instanceof Attributes) {
+                return $sanitize->sanitize($input);
+            }
+            return Sanitize::attributes($sanitize)->sanitize($input);
+        }
+
+        return $sanitize->sanitize($input);
     }
 }
