@@ -185,7 +185,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Returns the content types acceptable by the end user.
-     * 
+     *
      * This is determined by the `Accept` HTTP header. For example,
      *
      * ```php
@@ -219,7 +219,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Sets the acceptable content types.
-     * 
+     *
      * Please refer to {@see \rock\request\Request::getAcceptableContentTypes()} on the format of the parameter.
      * @param array $value the content types that are acceptable by the end user. They should
      * be ordered by the preference level.
@@ -230,10 +230,10 @@ class Request implements RequestInterface, ObjectInterface
     {
         $this->_contentTypes = $value;
     }
-    
+
     /**
      * Returns request content-type.
-     * 
+     *
      * The Content-Type header field indicates the MIME type of the data
      * contained in the case of the HEAD method, the
      * media type that would have been sent had the request been a GET.
@@ -416,7 +416,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Returns the path info of the currently requested URL.
-     * 
+     *
      * A path info refers to the part that is after the entry script and before the question mark (query string).
      * The starting and ending slashes are both removed.
      *
@@ -435,7 +435,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Sets the path info of the current request.
-     * 
+     *
      * This method is mainly provided for testing purpose.
      * @param string $value the path info of the current request
      */
@@ -446,7 +446,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Resolves the path info part of the currently requested URL.
-     * 
+     *
      * A path info refers to the part that is after the entry script and before the question mark (query string).
      * The starting slashes are both removed (ending slashes will be kept).
      *
@@ -565,7 +565,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Sets the currently requested relative URL.
-     * 
+     *
      * The URI must refer to the portion that is after {@see \rock\request\Request::getHostInfo()}.
      * Note that the URI should be URL-encoded.
      * @param string $value the request URI to be set
@@ -577,7 +577,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Resolves the request URI portion for the currently requested URL.
-     * 
+     *
      * This refers to the portion that is after the {@see \rock\request\Request::$hostInfo} part. It includes
      * the @see queryString part if any.
      * The implementation of this method referenced Zend_Controller_Request_Http in Zend Framework.
@@ -625,7 +625,7 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Returns the schema and host part of the current request URL.
-     * 
+     *
      * The returned URL does not have an ending slash.
      * By default this is determined based on the user request information.
      * You may explicitly specify it by setting the {@see \rock\request\Request::$hostInfo} property.
@@ -788,7 +788,7 @@ class Request implements RequestInterface, ObjectInterface
     public function isSecureConnection()
     {
         return isset($_SERVER['HTTPS']) && (strcasecmp($_SERVER['HTTPS'], 'on') === 0 || $_SERVER['HTTPS'] == 1)
-               || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strcasecmp($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') === 0;
+        || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strcasecmp($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') === 0;
     }
 
     /**
@@ -1069,7 +1069,7 @@ class Request implements RequestInterface, ObjectInterface
     public function isFlash()
     {
         return isset($_SERVER['HTTP_USER_AGENT']) &&
-               (stripos($_SERVER['HTTP_USER_AGENT'], 'Shockwave') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'Flash') !== false);
+        (stripos($_SERVER['HTTP_USER_AGENT'], 'Shockwave') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'Flash') !== false);
     }
 
     private $_rawBody;
