@@ -1,6 +1,7 @@
 <?php
 namespace rock\request;
 
+use rock\base\Alias;
 use rock\base\BaseException;
 use rock\base\ObjectInterface;
 use rock\base\ObjectTrait;
@@ -1140,7 +1141,7 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function setHomeUrl($value)
     {
-        $this->_homeUrl = $value;
+        $this->_homeUrl = Alias::getAlias($value);
     }
 
     public function __call($name, $arguments)
