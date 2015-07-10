@@ -27,6 +27,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     /** @var  Request */
     protected $request;
+
     protected function setUp()
     {
         parent::setUp();
@@ -71,7 +72,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $GLOBALS[$httpMethod]['foo'] = ' <b>foo</b>     ';
         $GLOBALS[$httpMethod]['bar'] = '    <b>bar   </b>';
         $this->assertEquals(
-            ['foo' => '<b>foo</b>', 'bar' =>'<b>bar   </b>', 'baz' => '<b>-1</b>'],
+            ['foo' => '<b>foo</b>', 'bar' => '<b>bar   </b>', 'baz' => '<b>-1</b>'],
             Request::$method(Sanitize::attributes(Sanitize::trim()))
         );
     }
@@ -155,8 +156,8 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $_POST['test'] = serialize(['foo' => ['  <b>foo</b>'], 'bar' => '<b>bar</b>baz ']);
         $result = Request::postAll(Sanitize::attributes(Sanitize::unserialize()->removeTags()->trim()));
         $this->assertEquals('foo', $result['foo']);
-        $this->assertEquals(['foo' => ['foo'], 'bar' => ['baz'=>'barbaz']], $result['bar']);
-        $this->assertEquals(['foo' => 'foo', 'bar' => ['foo' => 'baz']],$result['baz']);
+        $this->assertEquals(['foo' => ['foo'], 'bar' => ['baz' => 'barbaz']], $result['bar']);
+        $this->assertEquals(['foo' => 'foo', 'bar' => ['foo' => 'baz']], $result['baz']);
         $this->assertEquals(['foo' => ['foo'], 'bar' => 'barbaz'], $result['test']);
     }
 
@@ -168,17 +169,17 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals([], $request->parseAcceptHeader(' '));
 
         $this->assertEquals([
-                                'audio/basic' => ['q' => 1],
-                                'audio/*' => ['q' => 0.2],
-                            ], $request->parseAcceptHeader('audio/*; q=0.2, audio/basic'));
+            'audio/basic' => ['q' => 1],
+            'audio/*' => ['q' => 0.2],
+        ], $request->parseAcceptHeader('audio/*; q=0.2, audio/basic'));
 
         $this->assertEquals([
-                                'application/json' => ['q' => 1, 'version' => '1.0'],
-                                'application/xml' => ['q' => 1, 'version' => '2.0', 'x'],
-                                'text/x-c' => ['q' => 1],
-                                'text/x-dvi' => ['q' => 0.8],
-                                'text/plain' => ['q' => 0.5],
-                            ], $request->parseAcceptHeader('text/plain; q=0.5,
+            'application/json' => ['q' => 1, 'version' => '1.0'],
+            'application/xml' => ['q' => 1, 'version' => '2.0', 'x'],
+            'text/x-c' => ['q' => 1],
+            'text/x-dvi' => ['q' => 0.8],
+            'text/plain' => ['q' => 0.5],
+        ], $request->parseAcceptHeader('text/plain; q=0.5,
             application/json; version=1.0,
             application/xml; version=2.0; x,
             text/x-dvi; q=0.8, text/x-c'));

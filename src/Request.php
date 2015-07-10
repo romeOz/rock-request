@@ -97,7 +97,7 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sanitize GET request-value.
      * @param string $name name of request-value.
-     * @param mixed  $default
+     * @param mixed $default
      * @param Sanitize $sanitize
      * @return mixed
      */
@@ -109,7 +109,7 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sanitize POST request-value.
      * @param string $name name of request-value.
-     * @param mixed  $default
+     * @param mixed $default
      * @param Sanitize $sanitize
      * @return mixed
      */
@@ -121,7 +121,7 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sanitize PUT request-value.
      * @param string $name name of request-value.
-     * @param mixed  $default
+     * @param mixed $default
      * @param Sanitize $sanitize
      * @return mixed
      */
@@ -133,7 +133,7 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sanitize DELETE request-value.
      * @param string $name name of request-value.
-     * @param mixed  $default
+     * @param mixed $default
      * @param Sanitize $sanitize
      * @return mixed
      */
@@ -324,7 +324,7 @@ class Request implements RequestInterface, ObjectInterface
                 if (strpos($param, '=') !== false) {
                     list ($key, $value) = explode('=', $param, 2);
                     if ($key === 'q') {
-                        $values['q'][2] = (double) $value;
+                        $values['q'][2] = (double)$value;
                     } else {
                         $values[$key] = $value;
                     }
@@ -389,7 +389,8 @@ class Request implements RequestInterface, ObjectInterface
 
                 if ($normalizedLanguage === $acceptableLanguage || // en-us==en-us
                     strpos($acceptableLanguage, $normalizedLanguage . '-') === 0 || // en==en-us
-                    strpos($normalizedLanguage, $acceptableLanguage . '-') === 0) { // en-us==en
+                    strpos($normalizedLanguage, $acceptableLanguage . '-') === 0
+                ) { // en-us==en
 
                     return $language;
                 }
@@ -497,7 +498,7 @@ class Request implements RequestInterface, ObjectInterface
             $pathInfo = substr($pathInfo, 1);
         }
 
-        return (string) $pathInfo;
+        return (string)$pathInfo;
     }
 
     /**
@@ -1155,21 +1156,22 @@ class Request implements RequestInterface, ObjectInterface
 
     public static function __callStatic($name, $arguments)
     {
-        return call_user_func_array([static::getInstance(static::className()), $name], $arguments);
+        return call_user_func_array([static::getInstance(), $name], $arguments);
     }
 
     /**
-     * Get instance.
+     * Returns self instance.
      *
      * If exists {@see \rock\di\Container} that uses it.
      *
-     * @param string|array $config the configuration. It can be either a string representing the class name
-     *                                     or an array representing the object configuration.
      * @return static
      */
-    protected static function getInstance($config)
+    protected static function getInstance()
     {
-        return Instance::ensure($config, static::className());
+        if (class_exists('\rock\di\Container')) {
+            return \rock\di\Container::load(static::className());
+        }
+        return new static();
     }
 
     /**
@@ -1185,7 +1187,7 @@ class Request implements RequestInterface, ObjectInterface
             return $input;
         }
         if (!isset($sanitize)) {
-            $sanitize = $this->sanitize ? : Sanitize::removeTags()->trim()->toType();
+            $sanitize = $this->sanitize ?: Sanitize::removeTags()->trim()->toType();
         }
 
         $rawRule = $sanitize->getRawRules();
@@ -1199,9 +1201,9 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sanitize request-value.
      *
-     * @param string      $method  method request
-     * @param string      $name name of request-value
-     * @param mixed  $default
+     * @param string $method method request
+     * @param string $name name of request-value
+     * @param mixed $default
      * @param Sanitize $sanitize
      * @return null
      */
@@ -1213,7 +1215,7 @@ class Request implements RequestInterface, ObjectInterface
         $input = $GLOBALS[$method][$name];
 
         if (!isset($sanitize)) {
-            $sanitize = $this->sanitize ? : Sanitize::removeTags()->trim()->toType();
+            $sanitize = $this->sanitize ?: Sanitize::removeTags()->trim()->toType();
         }
 
         if (is_array($input)) {
