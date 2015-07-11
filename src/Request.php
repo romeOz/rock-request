@@ -1074,6 +1074,16 @@ class Request implements RequestInterface, ObjectInterface
         (stripos($_SERVER['HTTP_USER_AGENT'], 'Shockwave') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'Flash') !== false);
     }
 
+    /**
+     * Returns whether this is a CORS request.
+     *
+     * @return boolean whether this is a CORS request
+     */
+    public function isCORS()
+    {
+        return !empty($_SERVER['HTTP_ORIGIN']);
+    }
+
     private $_rawBody;
 
     /**

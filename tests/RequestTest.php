@@ -379,6 +379,20 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($this->request->isPost());
     }
 
+    public function testIsCORS()
+    {
+        $this->assertFalse($this->request->isCORS());
+        $_SERVER['HTTP_ORIGIN'] = 'http://site.com';
+        $this->assertTrue($this->request->isCORS());
+    }
+
+    public function testIsAjax()
+    {
+        $this->assertFalse($this->request->isAjax());
+        $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
+        $this->assertTrue($this->request->isAjax());
+    }
+
     protected function getRequest()
     {
         return new Request();
