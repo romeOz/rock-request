@@ -14,7 +14,7 @@ Features
 -------------------
 
  * Sanitize
- * Module for [Rock Framework](https://github.com/romeOz/rock)
+ * Module/Component for [Rock Framework](https://github.com/romeOz/rock)
 
 Installation
 -------------------
