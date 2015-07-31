@@ -2,6 +2,7 @@
 namespace rockunit;
 
 
+use rock\request\JsonParser;
 use rock\request\Request;
 use rock\sanitize\Sanitize;
 
@@ -32,67 +33,33 @@ class RequestTest extends \PHPUnit_Framework_TestCase
     {
         parent::setUp();
         $this->request = $this->getRequest();
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_POST = $_GET = [];
+        $_SERVER["CONTENT_TYPE"] = null;
     }
 
-
-    /**
-     * @dataProvider httpMethodScalarProvider
-     */
-    public function testScalar($httpMethod, $method)
-    {
-        $GLOBALS[$httpMethod]['foo'] = ' <b>foo</b>     ';
-        $GLOBALS[$httpMethod]['bar'] = '    <b>bar   </b>';
-        $GLOBALS[$httpMethod]['baz'] = '    <b>-1</b>';
-        $this->assertSame('<b>foo</b>', Request::$method('foo', null, Sanitize::trim()));
-        $this->assertSame('bar', Request::$method('bar'));
-        $this->assertSame(-1, Request::$method('baz'));
-        $this->assertSame(0, Request::$method('baz', null, Sanitize::removeTags()->trim()->positive()));
-    }
-
-    public function httpMethodScalarProvider()
-    {
-        return [
-            ['_GET', 'get'],
-            ['_POST', 'post'],
-            ['_PUT', 'put'],
-            ['_DELETE', 'delete']
-        ];
-    }
-
-    public function testScalarNull()
-    {
-        $this->assertNull(Request::get('unknown'));
-    }
-
-    /**
-     * @dataProvider httpMethodAllProvider
-     */
-    public function testAll($httpMethod, $method)
-    {
-        $GLOBALS[$httpMethod]['foo'] = ' <b>foo</b>     ';
-        $GLOBALS[$httpMethod]['bar'] = '    <b>bar   </b>';
-        $this->assertEquals(
-            ['foo' => '<b>foo</b>', 'bar' => '<b>bar   </b>', 'baz' => '<b>-1</b>'],
-            Request::$method(Sanitize::attributes(Sanitize::trim()))
-        );
-    }
-
-    public function httpMethodAllProvider()
-    {
-        return [
-            ['_GET', 'getAll'],
-            ['_POST', 'postAll'],
-            ['_PUT', 'putAll'],
-            ['_DELETE', 'deleteAll']
-        ];
-    }
-
-    public function testSanitize()
+    public function testGet()
     {
         $_GET['foo'] = ' <b>foo</b>     ';
         $_GET['bar'] = '    <b>bar   </b>';
+        $_GET['baz'] = '    <b>-1</b>';
+        $this->assertSame('<b>foo</b>', Request::get('foo', null, Sanitize::trim()));
+        $this->assertSame('bar', Request::get('bar'));
+        $this->assertSame(-1, Request::get('baz'));
+        $this->assertSame(0, Request::get('baz', null, Sanitize::removeTags()->trim()->positive()));
+
+        // all
+        $_GET['foo'] = ' <b>foo</b>     ';
+        $_GET['bar'] = '    <b>bar   </b>';
+        $this->assertEquals(
+            ['foo' => '<b>foo</b>', 'bar' => '<b>bar   </b>', 'baz' => '<b>-1</b>'],
+            Request::get(null, null, Sanitize::attributes(Sanitize::trim()))
+        );
+
+        $_GET['foo'] = ' <b>foo</b>     ';
+        $_GET['bar'] = '    <b>bar   </b>';
         $_GET['baz'] = '{"baz" : " <b> baz  </b>     "}';
-        $result = Request::getAll(Sanitize::attributes(
+        $result = Request::get(null, null, Sanitize::attributes(
             [
                 'bar' => Sanitize::removeTags()->trim(),
                 'baz' => Sanitize::unserialize()->removeTags()->trim(),
@@ -103,21 +70,66 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(['baz' => 'baz'], $result['baz']);
     }
 
+
+    public function testPost()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['foo'] = ' <b>foo</b>     ';
+        $_POST['bar'] = '    <b>bar   </b>';
+        $_POST['baz'] = '    <b>-1</b>';
+        $this->assertSame('<b>foo</b>', Request::post('foo', null, Sanitize::trim()));
+        $this->assertSame('bar', Request::post('bar'));
+        $this->assertSame(-1, Request::post('baz'));
+        $this->assertSame(0, Request::post('baz', null, Sanitize::removeTags()->trim()->positive()));
+
+        // all
+        $_POST['foo'] = ' <b>foo</b>     ';
+        $_POST['bar'] = '    <b>bar   </b>';
+        $this->assertEquals(
+            ['foo' => '<b>foo</b>', 'bar' => '<b>bar   </b>', 'baz' => '<b>-1</b>'],
+            Request::post(null, null, Sanitize::attributes(Sanitize::trim()))
+        );
+
+        $_POST['foo'] = '<b>foo</b>    ';
+        $_POST['bar'] = ['foo' => ['  <b>foo</b>'], 'bar' => '{"baz" : "<b>bar</b>baz "}'];
+        $_POST['baz'] = '{"foo" : "<b>foo</b>", "bar" : {"foo" : "<b>baz</b>   "}}';
+        $_POST['test'] = serialize(['foo' => ['  <b>foo</b>'], 'bar' => '<b>bar</b>baz ']);
+        $result = Request::post(null, null, Sanitize::attributes(Sanitize::unserialize()->removeTags()->trim()));
+
+        $this->assertEquals('foo', $result['foo']);
+        $this->assertEquals(['foo' => ['foo'], 'bar' => ['baz' => 'barbaz']], $result['bar']);
+        $this->assertEquals(['foo' => 'foo', 'bar' => ['foo' => 'baz']], $result['baz']);
+        $this->assertEquals(['foo' => ['foo'], 'bar' => 'barbaz'], $result['test']);
+    }
+
+    public function testNull()
+    {
+        $this->assertNull(Request::get('unknown'));
+    }
+
+    public function testRawBody()
+    {
+        $this->request->rawBody = 'foo=+<b>foo</b>+++++&bar=++<b>bar+++</b>&baz=+++<b>-1</b>';
+        $this->assertSame('<b>foo</b>', $this->request->post('foo', null, Sanitize::trim()));
+        $this->assertSame('bar', $this->request->post('bar'));
+        $this->assertSame(-1, $this->request->post('baz'));
+        $this->assertSame(0, $this->request->post('baz', null, Sanitize::removeTags()->trim()->positive()));
+    }
+
     public function testAllAttributesTrim()
     {
         $_GET['foo'] = ' <b>foo</b>     ';
         $_GET['bar'] = '    <b>bar   </b>';
-        $result = Request::getAll(Sanitize::trim());
+        $result = Request::get(null, null, Sanitize::trim());
         $this->assertEquals('<b>foo</b>', $result['foo']);
         $this->assertEquals('<b>bar   </b>', $result['bar']);
     }
-
 
     public function testAllAttributesUnserialize()
     {
         $_GET['foo'] = '{"foo" : "foo"}';
         $_GET['bar'] = '{"bar" : "bar"}';
-        $result = Request::getAll(Sanitize::unserialize());
+        $result = Request::get(null, null, Sanitize::unserialize());
         $this->assertEquals(['foo' => 'foo'], $result['foo']);
         $this->assertEquals(['bar' => 'bar'], $result['bar']);
     }
@@ -126,7 +138,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
     {
         $_GET['foo'] = ' <b>foo</b>     ';
         $_GET['bar'] = '{"bar" : "bar"}';
-        $result = Request::getAll(Sanitize::attributes(['bar' => Sanitize::unserialize()]));
+        $result = Request::get(null, null, Sanitize::attributes(['bar' => Sanitize::unserialize()]));
         $this->assertEquals(' <b>foo</b>     ', $result['foo']);
         $this->assertEquals(['bar' => 'bar'], $result['bar']);
     }
@@ -136,7 +148,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $_GET['foo'] = '<b>-5.5</b>';
         $_GET['bar'] = '5.5';
         $_GET['baz'] = '{"baz" : "5.6"}';
-        $result = Request::getAll(Sanitize::attributes(
+        $result = Request::get(null, null, Sanitize::attributes(
             [
                 'foo' => Sanitize::call('strip_tags')->call('abs')->call('ceil'),
                 'bar' => Sanitize::call('floor'),
@@ -148,19 +160,22 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(['baz' => 6], $result['baz']);
     }
 
-    public function testPost()
+    public function testAsJson()
     {
-        $_POST['foo'] = '<b>foo</b>    ';
-        $_POST['bar'] = ['foo' => ['  <b>foo</b>'], 'bar' => '{"baz" : "<b>bar</b>baz "}'];
-        $_POST['baz'] = '{"foo" : "<b>foo</b>", "bar" : {"foo" : "<b>baz</b>   "}}';
-        $_POST['test'] = serialize(['foo' => ['  <b>foo</b>'], 'bar' => '<b>bar</b>baz ']);
-        $result = Request::postAll(Sanitize::attributes(Sanitize::unserialize()->removeTags()->trim()));
-        $this->assertEquals('foo', $result['foo']);
-        $this->assertEquals(['foo' => ['foo'], 'bar' => ['baz' => 'barbaz']], $result['bar']);
-        $this->assertEquals(['foo' => 'foo', 'bar' => ['foo' => 'baz']], $result['baz']);
-        $this->assertEquals(['foo' => ['foo'], 'bar' => 'barbaz'], $result['test']);
-    }
+        $_SERVER["CONTENT_TYPE"] = 'application/json; charset=UTF-8';
+        $this->request->parsers = ['application/json' => JsonParser::className()];
 
+        $this->request->rawBody = json_encode([
+            'foo' => ' <b>foo</b>     ',
+            'bar' => '    <b>bar   </b>',
+            'baz' => '    <b>-1</b>'
+        ]);
+
+        $this->assertSame('<b>foo</b>', $this->request->post('foo', null, Sanitize::trim()));
+        $this->assertSame('bar', $this->request->post('bar'));
+        $this->assertSame(-1, $this->request->post('baz'));
+        $this->assertSame(0, $this->request->post('baz', null, Sanitize::removeTags()->trim()->positive()));
+    }
 
     public function testParseAcceptHeader()
     {
@@ -373,7 +388,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('GET', $this->request->getMethod());
         $this->assertTrue($this->request->isGet());
 
-        $_POST[$this->request->methodVar] = 'POST';
+        $_POST[$this->request->methodParam] = 'POST';
         $this->assertSame('POST', $this->request->getMethod());
         $this->assertFalse($this->request->isGet());
         $this->assertTrue($this->request->isPost());

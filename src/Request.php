@@ -7,7 +7,6 @@ use rock\base\ObjectInterface;
 use rock\base\ObjectTrait;
 use rock\helpers\Helper;
 use rock\helpers\Instance;
-use rock\helpers\Json;
 use rock\log\Log;
 use rock\sanitize\Attributes;
 use rock\sanitize\Sanitize;
@@ -40,18 +39,15 @@ use rock\sanitize\Sanitize;
  * @property-read string $userIP User IP address. Null is returned if the user IP address cannot be detected. This
  * property is read-only.
  * @property-read array $eTags The entity tags. This property is read-only.
- * @property-read string $rawBody The request body. This property is read-only.
+ * @property string $rawBody The request body. This property is read-only.
+ * @property array $bodyParams The request parameters given in the request body.
  * @property array $acceptableLanguages The languages ordered by the preference level. The first element
  * represents the most preferred language.
  *
- * @method static mixed get($name, $default = null, Sanitize $sanitize = null)
- * @method static mixed post($name, $default = null, Sanitize $sanitize = null)
- * @method static mixed put($name, $default = null, Sanitize $sanitize = null)
- * @method static mixed delete($name, $default = null, Sanitize $sanitize = null)
- * @method static array getAll(Sanitize $sanitize = null)
- * @method static array postAll(Sanitize $sanitize = null)
- * @method static array putAll(Sanitize $sanitize = null)
- * @method static array deleteAll(Sanitize $sanitize = null)
+ * @method static mixed get($name = null, $default = null, Sanitize $sanitize = null)
+ * @method static mixed post($name = null, $default = null, Sanitize $sanitize = null)
+ * @method static mixed rawGet($name = null, $default = null)
+ * @method static mixed rawPost($name = null, $default = null)
  *
  * @package rock\request
  */
@@ -71,7 +67,27 @@ class Request implements RequestInterface, ObjectInterface
      * request tunneled through POST. Default to '_method'.
      * @see getMethod()
      */
-    public $methodVar = '_method';
+    public $methodParam = '_method';
+    /**
+     * @var array the parsers for converting the raw HTTP request body into {@see \rock\request\Request::$bodyParams}.
+     * The array keys are the request `Content-Types`, and the array values are the
+     * corresponding configurations for {@see \rock\helpers\Instance::ensure()} creating the parser objects.
+     * A parser must implement the {@see \rock\request\RequestParserInterface}.
+     *
+     * To enable parsing for JSON requests you can use the {@see \rock\request\JsonParser} class like in the following example:
+     *
+     * ```php
+     * [
+     *     'application/json' => 'rock\request\JsonParser',
+     * ]
+     * ```
+     *
+     * To register a parser for parsing all request types you can use `'*'` as the array key.
+     * This one will be used as a fallback in case no other types match.
+     *
+     * @see getBodyParams()
+     */
+    public $parsers = [];
     /**
      * @var boolean whether to show entry script name in the constructed URL. Defaults to true.
      */
@@ -91,7 +107,25 @@ class Request implements RequestInterface, ObjectInterface
     {
         $this->locale = strtolower($this->locale);
         $this->isSelfDomain(true);
-        $this->parseRequest();
+    }
+
+    protected function rawGetInternal($name = null, $default = null)
+    {
+        if (!isset($name)) {
+            return $_GET;
+        }
+        return isset($_GET[$name]) ? $_GET[$name] : $default;
+    }
+
+
+    protected function rawPostInternal($name = null, $default = null)
+    {
+        $params = $this->getBodyParams();
+
+        if (!isset($name)) {
+            return $params;
+        }
+        return isset($params[$name]) ? $params[$name] : $default;
     }
 
     /**
@@ -103,7 +137,7 @@ class Request implements RequestInterface, ObjectInterface
      */
     protected function getInternal($name, $default = null, Sanitize $sanitize = null)
     {
-        return $this->prepareValue('_GET', $name, $default, $sanitize);
+        return $this->sanitizeValue($this->rawGetInternal($name, $default), $sanitize);
     }
 
     /**
@@ -115,71 +149,7 @@ class Request implements RequestInterface, ObjectInterface
      */
     protected function postInternal($name, $default = null, Sanitize $sanitize = null)
     {
-        return $this->prepareValue('_POST', $name, $default, $sanitize);
-    }
-
-    /**
-     * Sanitize PUT request-value.
-     * @param string $name name of request-value.
-     * @param mixed $default
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function putInternal($name, $default = null, Sanitize $sanitize = null)
-    {
-        return $this->prepareValue('_PUT', $name, $default, $sanitize);
-    }
-
-    /**
-     * Sanitize DELETE request-value.
-     * @param string $name name of request-value.
-     * @param mixed $default
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function deleteInternal($name, $default = null, Sanitize $sanitize = null)
-    {
-        return $this->prepareValue('_DELETE', $name, $default, $sanitize);
-    }
-
-    /**
-     * Sanitize GET all request-values.
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function getAllInternal(Sanitize $sanitize = null)
-    {
-        return $this->prepareAll($GLOBALS['_GET'], $sanitize);
-    }
-
-    /**
-     * Sanitize POST all request-values.
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function postAllInternal(Sanitize $sanitize = null)
-    {
-        return $this->prepareAll($GLOBALS['_POST'], $sanitize);
-    }
-
-    /**
-     * Sanitize PUT all request-values.
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function putAllInternal(Sanitize $sanitize = null)
-    {
-        return $this->prepareAll($GLOBALS['_PUT'], $sanitize);
-    }
-
-    /**
-     * Sanitize DELETE all request-values.
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function deleteAllInternal(Sanitize $sanitize = null)
-    {
-        return $this->prepareAll($GLOBALS['_DELETE'], $sanitize);
+        return $this->sanitizeValue($this->rawPostInternal($name, $default), $sanitize);
     }
 
     private $_contentTypes;
@@ -964,8 +934,8 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getMethod()
     {
-        if (isset($_POST[$this->methodVar])) {
-            return strtoupper($_POST[$this->methodVar]);
+        if (isset($_POST[$this->methodParam])) {
+            return strtoupper($_POST[$this->methodParam]);
         } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
             return strtoupper($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
         } else {
@@ -1108,25 +1078,58 @@ class Request implements RequestInterface, ObjectInterface
         $this->_rawBody = $rawBody;
     }
 
+    private $_bodyParams;
+
     /**
-     * Parse vars of `HEAD`, `PUT`, `PATCH`, `DELETE`
+     * Returns the request parameters given in the request body.
+     *
+     * Request parameters are determined using the parsers configured in {@see \rock\request\Request::$parsers} property.
+     * If no parsers are configured for the current {@see \rock\request\Request::$contentType} it uses the PHP function `mb_parse_str()`
+     * to parse the {@see \rock\request\Request::$rawBody} (request body}.
+     * @return array the request parameters given in the request body.
+     * @throws RequestException
+     * @see getMethod()
+     * @see getBodyParam()
+     * @see setBodyParams()
      */
-    public function parseRequest()
+    public function getBodyParams()
     {
-        $method = $this->getMethod();
-        if (empty($GLOBALS['_' . $method]) && array_key_exists($method, ['HEAD' => 0, 'POST' => 1, 'PUT' => 2, 'PATCH' => 3, 'DELETE' => 4])) {
-
-            $stream = $this->getRawBody();
-            if ($this->getContentType() === 'application/json' || Json::is($stream)) {
-                $array = Json::decode($stream, true);
-            } else {
-                parse_str($stream, $array);
-            }
-
-            $GLOBALS['_' . $method] = $array;
-            // Add these request vars into _REQUEST, mimicing default behavior, PUT/DELETE will override existing COOKIE/GET vars
-            $_REQUEST = $array + $_REQUEST;
+        if (isset($this->_bodyParams)) {
+            return $this->_bodyParams;
         }
+
+        if (isset($_POST[$this->methodParam])) {
+            $this->_bodyParams = $_POST;
+            unset($this->_bodyParams[$this->methodParam]);
+            return $this->_bodyParams;
+        }
+
+        $contentType = $this->getContentType();
+        if (($pos = strpos($contentType, ';')) !== false) {
+            // e.g. application/json; charset=UTF-8
+            $contentType = substr($contentType, 0, $pos);
+        }
+
+        if (isset($this->parsers[$contentType])) {
+            $parser = Instance::ensure($this->parsers[$contentType], null, [], false);
+            if (!($parser instanceof RequestParserInterface)) {
+                throw new RequestException("The '{$contentType}' request parser is invalid. It must implement the rock\\request\\RequestParserInterface.");
+            }
+            $this->_bodyParams = $parser->parse($this->getRawBody(), $contentType);
+        } elseif (isset($this->parsers['*'])) {
+            $parser = Instance::ensure($this->parsers['*'], null, [], false);
+            if (!($parser instanceof RequestParserInterface)) {
+                throw new RequestException("The fallback request parser is invalid. It must implement the rock\\request\\RequestParserInterface.");
+            }
+            $this->_bodyParams = $parser->parse($this->getRawBody(), $contentType);
+        } elseif ($this->getMethod() === 'POST') {
+            // PHP has already parsed the body so we have all params in $_POST
+            $this->_bodyParams = $_POST;
+        } else {
+            mb_parse_str($this->getRawBody(), $this->_bodyParams);
+        }
+
+        return $this->_bodyParams;
     }
 
     private $_homeUrl;
@@ -1166,64 +1169,18 @@ class Request implements RequestInterface, ObjectInterface
 
     public static function __callStatic($name, $arguments)
     {
-        return call_user_func_array([static::getInstance(), $name], $arguments);
-    }
-
-    /**
-     * Returns self instance.
-     *
-     * If exists {@see \rock\di\Container} that uses it.
-     *
-     * @return static
-     */
-    protected static function getInstance()
-    {
-        if (class_exists('\rock\di\Container')) {
-            return \rock\di\Container::load(static::className());
-        }
-        return new static();
-    }
-
-    /**
-     * Sanitize all request-values.
-     *
-     * @param mixed $input
-     * @param Sanitize $sanitize
-     * @return mixed
-     */
-    protected function prepareAll($input, Sanitize $sanitize = null)
-    {
-        if (empty($input)) {
-            return $input;
-        }
-        if (!isset($sanitize)) {
-            $sanitize = $this->sanitize ?: Sanitize::removeTags()->trim()->toType();
-        }
-
-        $rawRule = $sanitize->getRawRules();
-        $rawRule = current($rawRule);
-        if ($rawRule instanceof Attributes) {
-            return $sanitize->sanitize($input);
-        }
-        return Sanitize::attributes($sanitize)->sanitize($input);
+        return call_user_func_array([Instance::ensure(static::className()), $name], $arguments);
     }
 
     /**
      * Sanitize request-value.
      *
-     * @param string $method method request
-     * @param string $name name of request-value
-     * @param mixed $default
+     * @param mixed $input
      * @param Sanitize $sanitize
      * @return null
      */
-    protected function prepareValue($method, $name, $default = null, Sanitize $sanitize = null)
+    protected function sanitizeValue($input, Sanitize $sanitize = null)
     {
-        if (!isset($GLOBALS[$method][$name])) {
-            return $default;
-        }
-        $input = $GLOBALS[$method][$name];
-
         if (!isset($sanitize)) {
             $sanitize = $this->sanitize ?: Sanitize::removeTags()->trim()->toType();
         }
