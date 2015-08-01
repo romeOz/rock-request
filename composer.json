@@ -1,36 +1,39 @@
 {
-    "name": "romeoz/rock-request",
-    "description": "HTTP request library for PHP",
-    "keywords": ["request", "http request"],
-    "type": "library",
-    "license": "MIT",
-    "support": {
-        "email": "serggalka@gmail.com",
-        "issues": "https://github.com/romeOz/rock-request/issues",
-        "source": "https://github.com/romeOz/rock-request"
-    },
-    "authors": [
-        {
-            "name": "Ruslan",
-            "email": "serggalka@gmail.com"
-        }
-    ],
-    "require": {
-        "php": ">=5.4.0",
-        "romeoz/rock-base" : "*@dev",
-        "romeoz/rock-sanitize" : "*@dev"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "~4.7.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "rock\\request\\": "src/"
-        }
-    },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "0.11-dev"
-        }
+  "name": "romeoz/rock-request",
+  "description": "HTTP request library for PHP",
+  "keywords": [
+    "request",
+    "http request"
+  ],
+  "type": "library",
+  "license": "MIT",
+  "support": {
+    "email": "serggalka@gmail.com",
+    "issues": "https://github.com/romeOz/rock-request/issues",
+    "source": "https://github.com/romeOz/rock-request"
+  },
+  "authors": [
+    {
+      "name": "Ruslan",
+      "email": "serggalka@gmail.com"
     }
+  ],
+  "require": {
+    "php": ">=5.4.0",
+    "romeoz/rock-base": "0.10.*",
+    "romeoz/rock-sanitize": "0.10.*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "~4.7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "rock\\request\\": "src/"
+    }
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-master": "0.11-dev"
+    }
+  }
 }
