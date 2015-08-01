@@ -109,12 +109,56 @@ class Request implements RequestInterface, ObjectInterface
         $this->isSelfDomain(true);
     }
 
+    private $_queryParams;
+
+    /**
+     * Returns the request parameters given in the {@see \rock\request\Request::$queryString}.
+     *
+     * This method will return the contents of `$_GET` if params where not explicitly set.
+     * @return array the request GET parameter values.
+     * @see setQueryParams()
+     */
+    public function getQueryParams()
+    {
+        if ($this->_queryParams === null) {
+            return $_GET;
+        }
+
+        return $this->_queryParams;
+    }
+
+    /**
+     * Sets the request {@see \rock\request\Request::$queryString} parameters.
+     * @param array $values the request query parameters (name-value pairs)
+     * @see getQueryParam()
+     * @see getQueryParams()
+     */
+    public function setQueryParams($values)
+    {
+        $this->_queryParams = $values;
+    }
+
+    /**
+     * Returns the named GET parameter value.
+     * If the GET parameter does not exist, the second parameter passed to this method will be returned.
+     * @param string $name the GET parameter name.
+     * @param mixed $default the default parameter value if the GET parameter does not exist.
+     * @return mixed the GET parameter value
+     * @see getBodyParam()
+     */
+    public function getQueryParam($name, $default = null)
+    {
+        $params = $this->getQueryParams();
+
+        return isset($params[$name]) ? $params[$name] : $default;
+    }
+
     protected function rawGetInternal($name = null, $default = null)
     {
         if (!isset($name)) {
-            return $_GET;
+            return $this->getQueryParams();
         }
-        return isset($_GET[$name]) ? $_GET[$name] : $default;
+        return $this->getQueryParam($name, $default);
     }
 
 
@@ -135,7 +179,7 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    protected function getInternal($name, $default = null, Sanitize $sanitize = null)
+    protected function getInternal($name = null, $default = null, Sanitize $sanitize = null)
     {
         return $this->sanitizeValue($this->rawGetInternal($name, $default), $sanitize);
     }
@@ -147,7 +191,7 @@ class Request implements RequestInterface, ObjectInterface
      * @param Sanitize $sanitize
      * @return mixed
      */
-    protected function postInternal($name, $default = null, Sanitize $sanitize = null)
+    protected function postInternal($name = null, $default = null, Sanitize $sanitize = null)
     {
         return $this->sanitizeValue($this->rawPostInternal($name, $default), $sanitize);
     }
