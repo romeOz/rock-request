@@ -8,12 +8,10 @@ A simple HTTP request library for PHP
 [![Coverage Status](https://coveralls.io/repos/romeOz/rock-request/badge.svg?branch=master)](https://coveralls.io/r/romeOz/rock-request?branch=master)
 [![License](https://poser.pugx.org/romeOz/rock-request/license.svg)](https://packagist.org/packages/romeOz/rock-request)
 
-[Rock Request on Packagist](https://packagist.org/packages/romeOz/rock-request)
-
 Features
 -------------------
 
- * Sanitize
+ * Sanitizing http-variables
  * Standalone module/component for [Rock Framework](https://github.com/romeOz/rock)
 
 Installation
@@ -21,7 +19,9 @@ Installation
 
 From the Command Line:
 
-```composer require romeoz/rock-request:*```
+```
+composer require romeoz/rock-request
+```
 
 In your composer.json:
 
@@ -65,7 +65,7 @@ Request::get('page', null, Sanitize::removeTags()->trim()->positive()); // outpu
 Requirements
 -------------------
  * **PHP 5.4+**
- * [Rock Sanitize](https://github.com/romeOz/rock-sanitize). Should be installed: `composer require romeoz/rock-sanitize:*`
+ * For using sanitize required [Rock Sanitize](https://github.com/romeOz/rock-sanitize): `composer require romeoz/rock-sanitize`
 
 License
 -------------------

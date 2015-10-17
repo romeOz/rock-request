@@ -1217,7 +1217,7 @@ class Request implements RequestInterface, ObjectInterface
     }
 
     /**
-     * Sanitize request-value.
+     * Sanitize http-variable.
      *
      * @param mixed $input
      * @param Sanitize $sanitize
