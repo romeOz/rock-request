@@ -300,7 +300,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     public function testGetUrlWithoutArgs()
     {
-        $this->assertSame('http://site.com/foo/', $this->request->getUrlWithoutArgs());
+        $this->assertSame('/foo/', $this->request->getUrlWithoutArgs());
     }
 
     public function testGetAndSetUrl()
