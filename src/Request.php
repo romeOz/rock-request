@@ -623,7 +623,7 @@ class Request implements RequestInterface, ObjectInterface
     }
 
     /**
-     * Returns host + path.
+     * Returns path.
      *
      * ```
      * http://site.com/foo/
@@ -633,7 +633,11 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getUrlWithoutArgs()
     {
-        return $this->getHostInfo() . '/' . $this->getPathInfo();
+        $url = $this->getUrl();
+        if (($pos = strpos($url, '?')) !== false) {
+            $url = substr($url, 0, $pos);
+        }
+        return $url;
     }
 
 
@@ -1217,7 +1221,7 @@ class Request implements RequestInterface, ObjectInterface
     }
 
     /**
-     * Sanitize http-variable.
+     * Sanitize request-value.
      *
      * @param mixed $input
      * @param Sanitize $sanitize
