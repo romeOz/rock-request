@@ -18,15 +18,15 @@ use rock\sanitize\Sanitize;
  * @property array $acceptableContentTypes The content types ordered by the quality score. Types with the
  * highest scores will be returned first. The array keys are the content types, while the array values are the
  * corresponding quality score and other parameters as given in the header.
- * @property-read string $scheme
+ * @property string $scheme
  * @property integer $port Port number for insecure requests.
  * @property integer $securePort Port number for secure requests.
  * @property string $serverName Server name. This property is read-only.
  * @property integer $serverPort Server port number. This property is read-only.
- * @property-read string $host hostname part  (e.g. `www.site.com`).
+ * @property string $host hostname part  (e.g. `www.site.com`).
  * @property-read string $hostInfo Schema and hostname part (with port number if needed) of the request URL (e.g.
  * `http://www.site.com`).
- * @property-read string $queryString Part of the request URL that is after the question mark. This property is
+ * @property string $queryString Part of the request URL that is after the question mark. This property is
  * read-only.
  * @property string $url The currently requested relative URL. Note that the URI returned is URL-encoded.
  * @property string $baseUrl The relative URL for the application.
@@ -36,7 +36,7 @@ use rock\sanitize\Sanitize;
  * @property string $scriptUrl The relative URL of the entry script.
  * @property string $userAgent User agent, null if not present. This property is read-only.
  * @property string $userHost User host name, null if cannot be determined. This property is read-only.
- * @property-read string $userIP User IP address. Null is returned if the user IP address cannot be detected. This
+ * @property string $userIP User IP address. Null is returned if the user IP address cannot be detected. This
  * property is read-only.
  * @property-read array $eTags The entity tags. This property is read-only.
  * @property string $rawBody The request body. This property is read-only.
@@ -109,6 +109,361 @@ class Request implements RequestInterface, ObjectInterface
         $this->isSelfDomain(true);
     }
 
+    private $_method;
+
+    /**
+     * Returns the method of the current request (e.g. `GET`, `POST`, `HEAD`, `PUT`, `PATCH`, `DELETE`).
+     *
+     * @return string request method, such as `GET`, `POST`, `HEAD`, `PUT`, `PATCH`, `DELETE`.
+     * The value returned is turned into upper case.
+     */
+    public function getMethod()
+    {
+        if (isset($this->_method)) {
+            return $this->_method;
+        }
+        if (isset($_POST[$this->methodParam])) {
+            return $this->_method = strtoupper($_POST[$this->methodParam]);
+        } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
+            return $this->_method = strtoupper($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
+        } else {
+            return $this->_method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
+        }
+    }
+
+    /**
+     * Sets a http-method.
+     * @param string $httpMethod request method, such as `GET`, `POST`, `HEAD`, `PUT`, `PATCH`, `DELETE`.
+     */
+    public function setMethod($httpMethod = 'GET')
+    {
+        $this->_method = $httpMethod;
+    }
+
+    /**
+     * Is methods request.
+     *
+     * @param array $methods names of methods
+     * @return bool
+     */
+    public function isMethods(array $methods)
+    {
+        return in_array($this->getMethod(), $methods, true);
+    }
+
+    /**
+     * @var string
+     */
+    private $_schema;
+
+    /**
+     * Returns schema.
+     *
+     * @return string
+     */
+    public function getScheme()
+    {
+        if ($this->_schema === null) {
+            $this->_schema = $this->isSecureConnection() ? 'https' : 'http';
+        }
+
+        return $this->_schema;
+    }
+
+    public function setScheme($scheme)
+    {
+        $this->_schema = $scheme;
+    }
+
+    private $_hostInfo;
+
+    /**
+     * Returns the schema and host part of the current request URL.
+     *
+     * The returned URL does not have an ending slash.
+     * By default this is determined based on the user request information.
+     * You may explicitly specify it by setting the {@see \rock\request\Request::$hostInfo} property.
+     * @return string schema and hostname part (with port number if needed) of the request URL (e.g. `http://www.site.com`)
+     */
+    public function getHostInfo()
+    {
+        if ($this->_hostInfo === null) {
+            $secure = $this->isSecureConnection();
+            $http = $secure ? 'https' : 'http';
+            if (isset($_SERVER['HTTP_HOST'])) {
+                $this->_hostInfo = $http . '://' . $this->getHost();
+            } elseif (isset($_SERVER['SERVER_NAME'])) {
+                $this->_hostInfo = $http . '://' . $this->getHost();
+                $port = $secure ? $this->getSecurePort() : $this->getPort();
+                if (($port !== 80 && !$secure) || ($port !== 443 && $secure)) {
+                    $this->_hostInfo .= ':' . $port;
+                }
+            } else {
+                $this->_hostInfo = null;
+            }
+        }
+
+        return $this->_hostInfo;
+    }
+
+    private $_host;
+
+    public function getHost()
+    {
+        if ($this->_host === null && isset($_SERVER['SERVER_NAME'])) {
+            $this->_host = Helper::getValue($_SERVER['HTTP_HOST'], $_SERVER['SERVER_NAME']);
+        }
+
+        return $this->_host;
+    }
+
+    public function setHost($host)
+    {
+        $this->_host = $host;
+    }
+
+    private $_url;
+
+    /**
+     * Returns the currently requested relative URL.
+     *
+     * This refers to the portion of the URL that is after the {@see \rock\request\Request::getHostInfo()} part.
+     * It includes the {@see \rock\request\Request::getQueryString()} part if any.
+     *
+     * @return string the currently requested relative URL. Note that the URI returned is URL-encoded.
+     * @throws RequestException if the URL cannot be determined due to unusual server configuration
+     */
+    public function getUrl()
+    {
+        if ($this->_url === null) {
+            $this->_url = $this->resolveRequestUri();
+        }
+        return $this->_url;
+    }
+
+    /**
+     * Sets the currently requested relative URL.
+     *
+     * The URI must refer to the portion that is after {@see \rock\request\Request::getHostInfo()}.
+     * Note that the URI should be URL-encoded.
+     * @param string $url the request URI to be set
+     */
+    public function setUrl($url)
+    {
+        $this->_url = $url;
+    }
+
+    /**
+     * Returns the currently requested absolute URL.
+     *
+     * This is a shortcut to the concatenation of {@see \rock\request\Request::getHostInfo()} and {@see \rock\request\Request::getUrl()}.
+     *
+     * @param bool $strip
+     * @return string the currently requested absolute URL.
+     */
+    public function getAbsoluteUrl($strip = true)
+    {
+        $url = $this->getHostInfo() . $this->getUrl();
+        return $strip === true ? strip_tags($url) : $url;
+    }
+
+    /**
+     * Returns path.
+     *
+     * ```
+     * http://site.com/foo/
+     * ```
+     *
+     * @return string
+     */
+    public function getUrlWithoutArgs()
+    {
+        $url = $this->getUrl();
+        if (($pos = strpos($url, '?')) !== false) {
+            $url = substr($url, 0, $pos);
+        }
+        return $url;
+    }
+
+    private $_homeUrl;
+
+    /**
+     * @return string the homepage URL
+     */
+    public function getHomeUrl()
+    {
+        if ($this->_homeUrl === null) {
+            if ($this->showScriptName) {
+                return $this->getScriptUrl();
+            } else {
+                return $this->getBaseUrl() . '/';
+            }
+        } else {
+            return Alias::getAlias($this->_homeUrl);
+        }
+    }
+
+    /**
+     * @param string $url the homepage URL
+     */
+    public function setHomeUrl($url)
+    {
+        $this->_homeUrl = $url;
+    }
+
+    private $_baseUrl;
+
+
+    /**
+     * Returns the relative URL for the application.
+     *
+     * This is similar to {@see \rock\request\Request::getScriptUrl()} except that it does not include the script file name,
+     * and the ending slashes are removed.
+     * @return string the relative URL for the application
+     * @see setScriptUrl()
+     */
+    public function getBaseUrl()
+    {
+        if ($this->_baseUrl === null) {
+            $this->_baseUrl = rtrim(dirname($this->getScriptUrl()), '\\/');
+        }
+        return $this->_baseUrl;
+    }
+
+    /**
+     * Sets the relative URL for the application.
+     *
+     * By default the URL is determined based on the entry script URL.
+     * This setter is provided in case you want to change this behavior.
+     * @param string $value the relative URL for the application
+     */
+    public function setBaseUrl($value)
+    {
+        $this->_baseUrl = $value;
+    }
+
+    private $_scriptUrl;
+
+    /**
+     * Returns the relative URL of the entry script.
+     *
+     * The implementation of this method referenced Zend_Controller_Request_Http in Zend Framework.
+     * @return string the relative URL of the entry script.
+     * @throws \Exception if unable to determine the entry script URL
+     */
+    public function getScriptUrl()
+    {
+        if ($this->_scriptUrl === null) {
+            $scriptFile = $this->getScriptFile();
+            $scriptName = basename($scriptFile);
+            if (basename($_SERVER['SCRIPT_NAME']) === $scriptName) {
+                $this->_scriptUrl = $_SERVER['SCRIPT_NAME'];
+            } elseif (basename($_SERVER['PHP_SELF']) === $scriptName) {
+                $this->_scriptUrl = $_SERVER['PHP_SELF'];
+            } elseif (isset($_SERVER['ORIG_SCRIPT_NAME']) && basename($_SERVER['ORIG_SCRIPT_NAME']) === $scriptName) {
+                $this->_scriptUrl = $_SERVER['ORIG_SCRIPT_NAME'];
+            } elseif (($pos = strpos($_SERVER['PHP_SELF'], '/' . $scriptName)) !== false) {
+                $this->_scriptUrl = substr($_SERVER['SCRIPT_NAME'], 0, $pos) . '/' . $scriptName;
+            } elseif (!empty($_SERVER['DOCUMENT_ROOT']) && strpos($scriptFile, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                $this->_scriptUrl = str_replace('\\', '/', str_replace($_SERVER['DOCUMENT_ROOT'], '', $scriptFile));
+            } else {
+                throw new \Exception('Unable to determine the entry script URL.');
+            }
+        }
+        return $this->_scriptUrl;
+    }
+
+    /**
+     * Sets the relative URL for the application entry script.
+     *
+     * This setter is provided in case the entry script URL cannot be determined
+     * on certain Web servers.
+     * @param string $value the relative URL for the application entry script.
+     */
+    public function setScriptUrl($value)
+    {
+        $this->_scriptUrl = '/' . trim($value, '/');
+    }
+
+    private $_scriptFile;
+
+
+    /**
+     * Returns the entry script file path.
+     *
+     * The default implementation will simply return `$_SERVER['SCRIPT_FILENAME']`.
+     * @return string the entry script file path
+     */
+    public function getScriptFile()
+    {
+        return isset($this->_scriptFile) ? $this->_scriptFile : $_SERVER['SCRIPT_FILENAME'];
+    }
+
+    private $_port;
+
+    /**
+     * Returns the port to use for insecure requests.
+     *
+     * Defaults to 80, or the port specified by the server if the current
+     * request is insecure.
+     * @return integer port number for insecure requests.
+     * @see setPort()
+     */
+    public function getPort()
+    {
+        if ($this->_port === null) {
+            $this->_port = !$this->isSecureConnection() && isset($_SERVER['SERVER_PORT']) ? (int)$_SERVER['SERVER_PORT'] : 80;
+        }
+        return $this->_port;
+    }
+
+    /**
+     * Sets the port to use for insecure requests.
+     * This setter is provided in case a custom port is necessary for certain
+     * server configurations.
+     * @param integer $port port number.
+     */
+    public function setPort($port)
+    {
+        if ($port != $this->_port) {
+            $this->_port = (int)$port;
+            $this->_hostInfo = null;
+        }
+    }
+
+    private $_securePort;
+
+    /**
+     * Returns the port to use for secure requests.
+     *
+     * Defaults to 443, or the port specified by the server if the current
+     * request is secure.
+     * @return integer port number for secure requests.
+     * @see setSecurePort()
+     */
+    public function getSecurePort()
+    {
+        if ($this->_securePort === null) {
+            $this->_securePort = $this->isSecureConnection() && isset($_SERVER['SERVER_PORT']) ? (int)$_SERVER['SERVER_PORT'] : 443;
+        }
+        return $this->_securePort;
+    }
+
+    /**
+     * Sets the port to use for secure requests.
+     *
+     * This setter is provided in case a custom port is necessary for certain
+     * server configurations.
+     * @param integer $value port number.
+     */
+    public function setSecurePort($value)
+    {
+        if ($value != $this->_securePort) {
+            $this->_securePort = (int)$value;
+            $this->_hostInfo = null;
+        }
+    }
+
     private $_queryParams;
 
     /**
@@ -116,12 +471,18 @@ class Request implements RequestInterface, ObjectInterface
      *
      * This method will return the contents of `$_GET` if params where not explicitly set.
      * @return array the request GET parameter values.
-     * @see setQueryParams()
+     * @see setRawQueryParams()
      */
     public function getQueryParams()
     {
-        if ($this->_queryParams === null) {
-            return $_GET;
+        if (isset($this->_queryParams)) {
+            return $this->_queryParams;
+        }
+
+        if ($queryString = $this->getQueryString()) {
+            $result = [];
+            parse_str($queryString, $result);
+            return $this->_queryParams = $result;
         }
 
         return $this->_queryParams;
@@ -129,13 +490,13 @@ class Request implements RequestInterface, ObjectInterface
 
     /**
      * Sets the request {@see \rock\request\Request::$queryString} parameters.
-     * @param array $values the request query parameters (name-value pairs)
-     * @see getQueryParam()
-     * @see getQueryParams()
+     * @param array $params the request query parameters (name-value pairs)
+     * @see getRawQueryParam()
+     * @see getRawQueryParams()
      */
-    public function setQueryParams($values)
+    public function setQueryParams($params)
     {
-        $this->_queryParams = $values;
+        $this->_queryParams = $params;
     }
 
     /**
@@ -153,47 +514,114 @@ class Request implements RequestInterface, ObjectInterface
         return isset($params[$name]) ? $params[$name] : $default;
     }
 
-    protected function rawGetInternal($name = null, $default = null)
+    /**
+     * @var string
+     */
+    private $_queryString;
+
+    /**
+     * Returns part of the request URL that is after the question mark.
+     *
+     * @return string part of the request URL that is after the question mark
+     */
+    public function getQueryString()
     {
-        if (!isset($name)) {
-            return $this->getQueryParams();
+        if (isset($this->_queryString)) {
+            return $this->_queryString;
         }
-        return $this->getQueryParam($name, $default);
-    }
-
-
-    protected function rawPostInternal($name = null, $default = null)
-    {
-        $params = $this->getBodyParams();
-
-        if (!isset($name)) {
-            return $params;
-        }
-        return isset($params[$name]) ? $params[$name] : $default;
+        return $this->_queryString = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
     }
 
     /**
-     * Sanitize GET request-value.
-     * @param string $name name of request-value.
-     * @param mixed $default
-     * @param Sanitize $sanitize
-     * @return mixed
+     * Sets a part of the request URL.
+     * @param $queryString
      */
-    protected function getInternal($name = null, $default = null, Sanitize $sanitize = null)
+    public function setQueryString($queryString)
     {
-        return $this->sanitizeValue($this->rawGetInternal($name, $default), $sanitize);
+        $this->_queryString = $queryString;
+    }
+
+    private $_rawBody;
+
+    /**
+     * Returns the raw HTTP request body.
+     * @return string the request body
+     */
+    public function getRawBody()
+    {
+        if ($this->_rawBody === null) {
+            $this->_rawBody = trim(file_get_contents('php://input'));
+        }
+
+        return $this->_rawBody;
     }
 
     /**
-     * Sanitize POST request-value.
-     * @param string $name name of request-value.
-     * @param mixed $default
-     * @param Sanitize $sanitize
-     * @return mixed
+     * Sets the raw HTTP request body, this method is mainly used by test scripts to simulate raw HTTP requests.
+     * @param $rawBody
      */
-    protected function postInternal($name = null, $default = null, Sanitize $sanitize = null)
+    public function setRawBody($rawBody)
     {
-        return $this->sanitizeValue($this->rawPostInternal($name, $default), $sanitize);
+        $this->_rawBody = $rawBody;
+    }
+
+    private $_bodyParams;
+
+    /**
+     * Returns the request parameters given in the request body.
+     *
+     * Request parameters are determined using the parsers configured in {@see \rock\request\Request::$parsers} property.
+     * If no parsers are configured for the current {@see \rock\request\Request::$contentType} it uses the PHP function `mb_parse_str()`
+     * to parse the {@see \rock\request\Request::$rawBody} (request body}.
+     * @return array the request parameters given in the request body.
+     * @throws RequestException
+     * @see getMethod()
+     * @see getBodyParam()
+     * @see setBodyParams()
+     */
+    public function getBodyParams()
+    {
+        if (isset($this->_bodyParams)) {
+            return $this->_bodyParams;
+        }
+
+        if (isset($_POST[$this->methodParam])) {
+            $this->_bodyParams = $_POST;
+            unset($this->_bodyParams[$this->methodParam]);
+            return $this->_bodyParams;
+        }
+
+        $contentType = $this->getContentType();
+        if (($pos = strpos($contentType, ';')) !== false) {
+            // e.g. application/json; charset=UTF-8
+            $contentType = substr($contentType, 0, $pos);
+        }
+
+        if (isset($this->parsers[$contentType])) {
+            $parser = Instance::ensure($this->parsers[$contentType], null, [], false);
+            if (!($parser instanceof RequestParserInterface)) {
+                throw new RequestException("The '{$contentType}' request parser is invalid. It must implement the rock\\request\\RequestParserInterface.");
+            }
+            $this->_bodyParams = $parser->parse($this->getRawBody(), $contentType);
+        } elseif (isset($this->parsers['*'])) {
+            $parser = Instance::ensure($this->parsers['*'], null, [], false);
+            if (!($parser instanceof RequestParserInterface)) {
+                throw new RequestException("The fallback request parser is invalid. It must implement the rock\\request\\RequestParserInterface.");
+            }
+            $this->_bodyParams = $parser->parse($this->getRawBody(), $contentType);
+        } elseif ($this->getMethod() === 'POST') {
+            // PHP has already parsed the body so we have all params in $_POST
+            $this->_bodyParams = $_POST;
+        } else {
+            mb_parse_str($this->getRawBody(), $this->_bodyParams);
+        }
+
+        return $this->_bodyParams;
+    }
+
+    public function setBodyParams(array $params)
+    {
+        $this->_bodyParams = $params;
     }
 
     private $_contentTypes;
@@ -547,51 +975,6 @@ class Request implements RequestInterface, ObjectInterface
     }
 
     /**
-     * Returns the currently requested absolute URL.
-     *
-     * This is a shortcut to the concatenation of {@see \rock\request\Request::getHostInfo()} and {@see \rock\request\Request::getUrl()}.
-     *
-     * @param bool $strip
-     * @return string the currently requested absolute URL.
-     */
-    public function getAbsoluteUrl($strip = true)
-    {
-        $url = $this->getHostInfo() . $this->getUrl();
-        return $strip === true ? strip_tags($url) : $url;
-    }
-
-    private $_url;
-
-    /**
-     * Returns the currently requested relative URL.
-     *
-     * This refers to the portion of the URL that is after the {@see \rock\request\Request::getHostInfo()} part.
-     * It includes the {@see \rock\request\Request::getQueryString()} part if any.
-     *
-     * @return string the currently requested relative URL. Note that the URI returned is URL-encoded.
-     * @throws RequestException if the URL cannot be determined due to unusual server configuration
-     */
-    public function getUrl()
-    {
-        if ($this->_url === null) {
-            $this->_url = $this->resolveRequestUri();
-        }
-        return $this->_url;
-    }
-
-    /**
-     * Sets the currently requested relative URL.
-     *
-     * The URI must refer to the portion that is after {@see \rock\request\Request::getHostInfo()}.
-     * Note that the URI should be URL-encoded.
-     * @param string $value the request URI to be set
-     */
-    public function setUrl($value)
-    {
-        $this->_url = $value;
-    }
-
-    /**
      * Resolves the request URI portion for the currently requested URL.
      *
      * This refers to the portion that is after the {@see \rock\request\Request::$hostInfo} part. It includes
@@ -620,184 +1003,6 @@ class Request implements RequestInterface, ObjectInterface
             throw new RequestException('Unable to determine the request URI.');
         }
         return $requestUri;
-    }
-
-    /**
-     * Returns path.
-     *
-     * ```
-     * http://site.com/foo/
-     * ```
-     *
-     * @return string
-     */
-    public function getUrlWithoutArgs()
-    {
-        $url = $this->getUrl();
-        if (($pos = strpos($url, '?')) !== false) {
-            $url = substr($url, 0, $pos);
-        }
-        return $url;
-    }
-
-
-    private $_hostInfo;
-
-    /**
-     * Returns the schema and host part of the current request URL.
-     *
-     * The returned URL does not have an ending slash.
-     * By default this is determined based on the user request information.
-     * You may explicitly specify it by setting the {@see \rock\request\Request::$hostInfo} property.
-     * @return string schema and hostname part (with port number if needed) of the request URL (e.g. `http://www.site.com`)
-     */
-    public function getHostInfo()
-    {
-        if ($this->_hostInfo === null) {
-            $secure = $this->isSecureConnection();
-            $http = $secure ? 'https' : 'http';
-            if (isset($_SERVER['HTTP_HOST'])) {
-                $this->_hostInfo = $http . '://' . $_SERVER['HTTP_HOST'];
-            } elseif (isset($_SERVER['SERVER_NAME'])) {
-                $this->_hostInfo = $http . '://' . $_SERVER['SERVER_NAME'];
-                $port = $secure ? $this->getSecurePort() : $this->getPort();
-                if (($port !== 80 && !$secure) || ($port !== 443 && $secure)) {
-                    $this->_hostInfo .= ':' . $port;
-                }
-            } else {
-                $this->_hostInfo = null;
-            }
-        }
-
-        return $this->_hostInfo;
-    }
-
-    /**
-     * @var string
-     */
-    private $_schema;
-
-    /**
-     * Returns schema.
-     *
-     * @return string
-     */
-    public function getScheme()
-    {
-        if ($this->_schema === null) {
-            $this->_schema = $this->isSecureConnection() ? 'https' : 'http';
-        }
-
-        return $this->_schema;
-    }
-
-    private $_host;
-
-    public function getHost()
-    {
-        if ($this->_host === null && isset($_SERVER['SERVER_NAME'])) {
-            $this->_host = Helper::getValue($_SERVER['HTTP_HOST'], $_SERVER['SERVER_NAME']);
-        }
-
-        return $this->_host;
-    }
-
-    private $_baseUrl;
-
-
-    /**
-     * Returns the relative URL for the application.
-     *
-     * This is similar to {@see \rock\request\Request::getScriptUrl()} except that it does not include the script file name,
-     * and the ending slashes are removed.
-     * @return string the relative URL for the application
-     * @see setScriptUrl()
-     */
-    public function getBaseUrl()
-    {
-        if ($this->_baseUrl === null) {
-            $this->_baseUrl = rtrim(dirname($this->getScriptUrl()), '\\/');
-        }
-        return $this->_baseUrl;
-    }
-
-    /**
-     * Sets the relative URL for the application.
-     *
-     * By default the URL is determined based on the entry script URL.
-     * This setter is provided in case you want to change this behavior.
-     * @param string $value the relative URL for the application
-     */
-    public function setBaseUrl($value)
-    {
-        $this->_baseUrl = $value;
-    }
-
-    private $_scriptUrl;
-
-    /**
-     * Returns the relative URL of the entry script.
-     *
-     * The implementation of this method referenced Zend_Controller_Request_Http in Zend Framework.
-     * @return string the relative URL of the entry script.
-     * @throws \Exception if unable to determine the entry script URL
-     */
-    public function getScriptUrl()
-    {
-        if ($this->_scriptUrl === null) {
-            $scriptFile = $this->getScriptFile();
-            $scriptName = basename($scriptFile);
-            if (basename($_SERVER['SCRIPT_NAME']) === $scriptName) {
-                $this->_scriptUrl = $_SERVER['SCRIPT_NAME'];
-            } elseif (basename($_SERVER['PHP_SELF']) === $scriptName) {
-                $this->_scriptUrl = $_SERVER['PHP_SELF'];
-            } elseif (isset($_SERVER['ORIG_SCRIPT_NAME']) && basename($_SERVER['ORIG_SCRIPT_NAME']) === $scriptName) {
-                $this->_scriptUrl = $_SERVER['ORIG_SCRIPT_NAME'];
-            } elseif (($pos = strpos($_SERVER['PHP_SELF'], '/' . $scriptName)) !== false) {
-                $this->_scriptUrl = substr($_SERVER['SCRIPT_NAME'], 0, $pos) . '/' . $scriptName;
-            } elseif (!empty($_SERVER['DOCUMENT_ROOT']) && strpos($scriptFile, $_SERVER['DOCUMENT_ROOT']) === 0) {
-                $this->_scriptUrl = str_replace('\\', '/', str_replace($_SERVER['DOCUMENT_ROOT'], '', $scriptFile));
-            } else {
-                throw new \Exception('Unable to determine the entry script URL.');
-            }
-        }
-        return $this->_scriptUrl;
-    }
-
-    /**
-     * Sets the relative URL for the application entry script.
-     *
-     * This setter is provided in case the entry script URL cannot be determined
-     * on certain Web servers.
-     * @param string $value the relative URL for the application entry script.
-     */
-    public function setScriptUrl($value)
-    {
-        $this->_scriptUrl = '/' . trim($value, '/');
-    }
-
-    private $_scriptFile;
-
-
-    /**
-     * Returns the entry script file path.
-     *
-     * The default implementation will simply return `$_SERVER['SCRIPT_FILENAME']`.
-     * @return string the entry script file path
-     */
-    public function getScriptFile()
-    {
-        return isset($this->_scriptFile) ? $this->_scriptFile : $_SERVER['SCRIPT_FILENAME'];
-    }
-
-    /**
-     * Returns part of the request URL that is after the question mark.
-     *
-     * @return string part of the request URL that is after the question mark
-     */
-    public function getQueryString()
-    {
-        return isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
     }
 
     /**
@@ -852,14 +1057,37 @@ class Request implements RequestInterface, ObjectInterface
     }
 
     /**
+     * User IP address.
+     * @var string
+     */
+    private $_userIP;
+
+    /**
      * Returns the user IP address.
-     *
      * @return string user IP address
      */
     public function getUserIP()
     {
-        return isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1';
+        if (isset($this->_userIP)) {
+            return $this->_userIP;
+        }
+        return $this->_userIP = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1';
     }
+
+    /**
+     * Sets a user IP address.
+     * @param string $ip
+     */
+    public function setUserIP($ip)
+    {
+        $this->_userIP = $ip;
+    }
+
+    /**
+     * User host name.
+     * @var string
+     */
+    private $_userHost;
 
     /**
      * Returns the user host name, null if it cannot be determined.
@@ -868,7 +1096,19 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getUserHost()
     {
-        return isset($_SERVER['REMOTE_HOST']) ? $_SERVER['REMOTE_HOST'] : null;
+        if (isset($this->_userHost)) {
+            return $this->_userHost;
+        }
+        return $this->_userHost = isset($_SERVER['REMOTE_HOST']) ? $_SERVER['REMOTE_HOST'] : null;
+    }
+
+    /**
+     * Sets a user host name.
+     * @param string $host
+     */
+    public function setUserHost($host)
+    {
+        $this->_userHost = $host;
     }
 
     /**
@@ -887,108 +1127,14 @@ class Request implements RequestInterface, ObjectInterface
         return isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : null;
     }
 
-    private $_port;
-
-    /**
-     * Returns the port to use for insecure requests.
-     *
-     * Defaults to 80, or the port specified by the server if the current
-     * request is insecure.
-     * @return integer port number for insecure requests.
-     * @see setPort()
-     */
-    public function getPort()
-    {
-        if ($this->_port === null) {
-            $this->_port = !$this->isSecureConnection() && isset($_SERVER['SERVER_PORT']) ? (int)$_SERVER['SERVER_PORT'] : 80;
-        }
-        return $this->_port;
-    }
-
-    /**
-     * Sets the port to use for insecure requests.
-     * This setter is provided in case a custom port is necessary for certain
-     * server configurations.
-     * @param integer $value port number.
-     */
-    public function setPort($value)
-    {
-        if ($value != $this->_port) {
-            $this->_port = (int)$value;
-            $this->_hostInfo = null;
-        }
-    }
-
-    private $_securePort;
-
-    /**
-     * Returns the port to use for secure requests.
-     *
-     * Defaults to 443, or the port specified by the server if the current
-     * request is secure.
-     * @return integer port number for secure requests.
-     * @see setSecurePort()
-     */
-    public function getSecurePort()
-    {
-        if ($this->_securePort === null) {
-            $this->_securePort = $this->isSecureConnection() && isset($_SERVER['SERVER_PORT']) ? (int)$_SERVER['SERVER_PORT'] : 443;
-        }
-        return $this->_securePort;
-    }
-
-    /**
-     * Sets the port to use for secure requests.
-     *
-     * This setter is provided in case a custom port is necessary for certain
-     * server configurations.
-     * @param integer $value port number.
-     */
-    public function setSecurePort($value)
-    {
-        if ($value != $this->_securePort) {
-            $this->_securePort = (int)$value;
-            $this->_hostInfo = null;
-        }
-    }
-
-    /**
-     * Is methods request.
-     *
-     * @param array $methods names of methods
-     * @return bool
-     */
-    public function isMethods(array $methods)
-    {
-        return in_array($this->getMethod(), $methods, true);
-    }
-
     /**
      * Is ips request.
-     *
      * @param array $ips ips
      * @return bool
      */
     public function isIps(array $ips)
     {
-        return in_array($_SERVER['REMOTE_ADDR'], $ips, true);
-    }
-
-    /**
-     * Returns the method of the current request (e.g. `GET`, `POST`, `HEAD`, `PUT`, `PATCH`, `DELETE`).
-     *
-     * @return string request method, such as `GET`, `POST`, `HEAD`, `PUT`, `PATCH`, `DELETE`.
-     * The value returned is turned into upper case.
-     */
-    public function getMethod()
-    {
-        if (isset($_POST[$this->methodParam])) {
-            return strtoupper($_POST[$this->methodParam]);
-        } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
-            return strtoupper($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
-        } else {
-            return isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
-        }
+        return in_array($this->getUserIP(), $ips, true);
     }
 
     /**
@@ -1061,6 +1207,8 @@ class Request implements RequestInterface, ObjectInterface
         return $this->getMethod() === 'PATCH';
     }
 
+    private $_isAjax;
+
     /**
      * Returns whether this is an AJAX (XMLHttpRequest) request.
      *
@@ -1068,8 +1216,18 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function isAjax()
     {
-        return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
+        if (isset($this->_isAjax)) {
+            return $this->_isAjax;
+        }
+        return $this->_isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
     }
+
+    public function setIsAjax($is)
+    {
+        $this->_isAjax = $is;
+    }
+
+    private $_isPjax;
 
     /**
      * Returns whether this is a PJAX request.
@@ -1078,8 +1236,18 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function isPjax()
     {
-        return $this->isAjax() && !empty($_SERVER['HTTP_X_PJAX']);
+        if (isset($this->_isPjax)) {
+            return $this->_isPjax;
+        }
+        return $this->_isPjax = $this->isAjax() && !empty($_SERVER['HTTP_X_PJAX']);
     }
+
+    public function setIsPjax($is)
+    {
+        $this->_isPjax = $is;
+    }
+
+    private $_isFlash;
 
     /**
      * Returns whether this is an Adobe Flash or Flex request.
@@ -1088,9 +1256,20 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function isFlash()
     {
-        return isset($_SERVER['HTTP_USER_AGENT']) &&
-        (stripos($_SERVER['HTTP_USER_AGENT'], 'Shockwave') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'Flash') !== false);
+        if (isset($this->_isFlash)) {
+            return $this->_isFlash;
+        }
+
+        return $this->_isFlash = isset($_SERVER['HTTP_USER_AGENT']) &&
+            (stripos($_SERVER['HTTP_USER_AGENT'], 'Shockwave') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'Flash') !== false);
     }
+
+    public function setIsFlash($is)
+    {
+        $this->_isFlash = $is;
+    }
+
+    private $_isCORS;
 
     /**
      * Returns whether this is a CORS request.
@@ -1099,111 +1278,15 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function isCORS()
     {
-        return !empty($_SERVER['HTTP_ORIGIN']);
+        if (isset($this->_isCORS)) {
+            return $this->_isCORS;
+        }
+        return $this->_isCORS = !empty($_SERVER['HTTP_ORIGIN']);
     }
 
-    private $_rawBody;
-
-    /**
-     * Returns the raw HTTP request body.
-     * @return string the request body
-     */
-    public function getRawBody()
+    public function setIsCORS($is)
     {
-        if ($this->_rawBody === null) {
-            $this->_rawBody = trim(file_get_contents('php://input'));
-        }
-
-        return $this->_rawBody;
-    }
-
-    /**
-     * Sets the raw HTTP request body, this method is mainly used by test scripts to simulate raw HTTP requests.
-     * @param $rawBody
-     */
-    public function setRawBody($rawBody)
-    {
-        $this->_rawBody = $rawBody;
-    }
-
-    private $_bodyParams;
-
-    /**
-     * Returns the request parameters given in the request body.
-     *
-     * Request parameters are determined using the parsers configured in {@see \rock\request\Request::$parsers} property.
-     * If no parsers are configured for the current {@see \rock\request\Request::$contentType} it uses the PHP function `mb_parse_str()`
-     * to parse the {@see \rock\request\Request::$rawBody} (request body}.
-     * @return array the request parameters given in the request body.
-     * @throws RequestException
-     * @see getMethod()
-     * @see getBodyParam()
-     * @see setBodyParams()
-     */
-    public function getBodyParams()
-    {
-        if (isset($this->_bodyParams)) {
-            return $this->_bodyParams;
-        }
-
-        if (isset($_POST[$this->methodParam])) {
-            $this->_bodyParams = $_POST;
-            unset($this->_bodyParams[$this->methodParam]);
-            return $this->_bodyParams;
-        }
-
-        $contentType = $this->getContentType();
-        if (($pos = strpos($contentType, ';')) !== false) {
-            // e.g. application/json; charset=UTF-8
-            $contentType = substr($contentType, 0, $pos);
-        }
-
-        if (isset($this->parsers[$contentType])) {
-            $parser = Instance::ensure($this->parsers[$contentType], null, [], false);
-            if (!($parser instanceof RequestParserInterface)) {
-                throw new RequestException("The '{$contentType}' request parser is invalid. It must implement the rock\\request\\RequestParserInterface.");
-            }
-            $this->_bodyParams = $parser->parse($this->getRawBody(), $contentType);
-        } elseif (isset($this->parsers['*'])) {
-            $parser = Instance::ensure($this->parsers['*'], null, [], false);
-            if (!($parser instanceof RequestParserInterface)) {
-                throw new RequestException("The fallback request parser is invalid. It must implement the rock\\request\\RequestParserInterface.");
-            }
-            $this->_bodyParams = $parser->parse($this->getRawBody(), $contentType);
-        } elseif ($this->getMethod() === 'POST') {
-            // PHP has already parsed the body so we have all params in $_POST
-            $this->_bodyParams = $_POST;
-        } else {
-            mb_parse_str($this->getRawBody(), $this->_bodyParams);
-        }
-
-        return $this->_bodyParams;
-    }
-
-    private $_homeUrl;
-
-    /**
-     * @return string the homepage URL
-     */
-    public function getHomeUrl()
-    {
-        if ($this->_homeUrl === null) {
-            if ($this->showScriptName) {
-                return $this->getScriptUrl();
-            } else {
-                return $this->getBaseUrl() . '/';
-            }
-        } else {
-            return $this->_homeUrl;
-        }
-    }
-
-    /**
-     * @param string $value the homepage URL
-     */
-    public function setHomeUrl($value)
-    {
-        $this->_homeUrl = Alias::getAlias($value);
+        $this->_isCORS = $is;
     }
 
     public function __call($name, $arguments)
@@ -1218,6 +1301,49 @@ class Request implements RequestInterface, ObjectInterface
     public static function __callStatic($name, $arguments)
     {
         return call_user_func_array([Instance::ensure(static::className()), $name], $arguments);
+    }
+
+    protected function rawGetInternal($name = null, $default = null)
+    {
+        if (!isset($name)) {
+            return $this->getQueryParams();
+        }
+        return $this->getQueryParam($name, $default);
+    }
+
+
+    protected function rawPostInternal($name = null, $default = null)
+    {
+        $params = $this->getBodyParams();
+
+        if (!isset($name)) {
+            return $params;
+        }
+        return isset($params[$name]) ? $params[$name] : $default;
+    }
+
+    /**
+     * Sanitize GET request-value.
+     * @param string $name name of request-value.
+     * @param mixed $default
+     * @param Sanitize $sanitize
+     * @return mixed
+     */
+    protected function getInternal($name = null, $default = null, Sanitize $sanitize = null)
+    {
+        return $this->sanitizeValue($this->rawGetInternal($name, $default), $sanitize);
+    }
+
+    /**
+     * Sanitize POST request-value.
+     * @param string $name name of request-value.
+     * @param mixed $default
+     * @param Sanitize $sanitize
+     * @return mixed
+     */
+    protected function postInternal($name = null, $default = null, Sanitize $sanitize = null)
+    {
+        return $this->sanitizeValue($this->rawPostInternal($name, $default), $sanitize);
     }
 
     /**
