@@ -996,8 +996,8 @@ class Request implements RequestInterface, ObjectInterface
             }
         } elseif (isset($_SERVER['ORIG_PATH_INFO'])) { // IIS 5.0 CGI
             $requestUri = $_SERVER['ORIG_PATH_INFO'];
-            if (!empty($_SERVER['QUERY_STRING'])) {
-                $requestUri .= '?' . $_SERVER['QUERY_STRING'];
+            if ($query = $this->getQueryString()) {
+                $requestUri .= '?' . $query;
             }
         } else {
             throw new RequestException('Unable to determine the request URI.');

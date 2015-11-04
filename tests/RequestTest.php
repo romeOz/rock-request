@@ -19,7 +19,6 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $_SERVER['REQUEST_URI'] = '/foo/?page=1';
         $_SERVER['SCRIPT_NAME'] = '/index.php';
         $_SERVER['SCRIPT_FILENAME'] = '/var/www/index.php';
-        $_SERVER['QUERY_STRING'] = 'page=1';
         $_SERVER['SERVER_PORT'] = 80;
         $_SERVER['HTTP_REFERER'] = 'http://referer.com/bar/';
         $_SERVER['HTTP_USER_AGENT'] = 'user';
@@ -35,30 +34,40 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->request = $this->getRequest();
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_POST = $_GET = [];
+        $_SERVER['QUERY_STRING'] = '';
         $_SERVER["CONTENT_TYPE"] = null;
     }
 
     public function testGet()
     {
-        $_GET['foo'] = ' <b>foo</b>     ';
-        $_GET['bar'] = '    <b>bar   </b>';
-        $_GET['baz'] = '    <b>-1</b>';
-        $this->assertSame('<b>foo</b>', Request::get('foo', null, Sanitize::trim()));
-        $this->assertSame('bar', Request::get('bar'));
-        $this->assertSame(-1, Request::get('baz'));
-        $this->assertSame(0, Request::get('baz', null, Sanitize::removeTags()->trim()->positive()));
+        $request = $this->getRequest([
+            'queryString' => http_build_query([
+                'foo' => ' <b>foo</b>     ',
+                'bar' => '    <b>bar   </b>',
+                'baz' => '    <b>-1</b>'
+            ])
+        ]);
+        $this->assertSame('<b>foo</b>', $request->get('foo', null, Sanitize::trim()));
+        $this->assertSame('bar', $request->get('bar'));
+        $this->assertSame(-1, $request->get('baz'));
+        $this->assertSame(0, $request->get('baz', null, Sanitize::removeTags()->trim()->positive()));
 
         // all
-        $_GET['foo'] = ' <b>foo</b>     ';
-        $_GET['bar'] = '    <b>bar   </b>';
+        $_SERVER['QUERY_STRING'] = http_build_query([
+            'foo' => ' <b>foo</b>     ',
+            'bar' => '    <b>bar   </b>',
+            'baz' => '    <b>-1</b>'
+        ]);
         $this->assertEquals(
             ['foo' => '<b>foo</b>', 'bar' => '<b>bar   </b>', 'baz' => '<b>-1</b>'],
             Request::get(null, null, Sanitize::attributes(Sanitize::trim()))
         );
 
-        $_GET['foo'] = ' <b>foo</b>     ';
-        $_GET['bar'] = '    <b>bar   </b>';
-        $_GET['baz'] = '{"baz" : " <b> baz  </b>     "}';
+        $_SERVER['QUERY_STRING'] = http_build_query([
+            'foo' => ' <b>foo</b>     ',
+            'bar' => '    <b>bar   </b>',
+            'baz' => '{"baz" : " <b> baz  </b>     "}'
+        ]);
         $result = Request::get(null, null, Sanitize::attributes(
             [
                 'bar' => Sanitize::removeTags()->trim(),
@@ -118,37 +127,53 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     public function testAllAttributesTrim()
     {
-        $_GET['foo'] = ' <b>foo</b>     ';
-        $_GET['bar'] = '    <b>bar   </b>';
-        $result = Request::get(null, null, Sanitize::trim());
+        $request = $this->getRequest([
+            'queryString' => http_build_query([
+                'foo' => ' <b>foo</b>     ',
+                'bar' => '    <b>bar   </b>',
+            ])
+        ]);
+        $result = $request->get(null, null, Sanitize::trim());
         $this->assertEquals('<b>foo</b>', $result['foo']);
         $this->assertEquals('<b>bar   </b>', $result['bar']);
     }
 
     public function testAllAttributesUnserialize()
     {
-        $_GET['foo'] = '{"foo" : "foo"}';
-        $_GET['bar'] = '{"bar" : "bar"}';
-        $result = Request::get(null, null, Sanitize::unserialize());
+        $request = $this->getRequest([
+            'queryString' => http_build_query([
+                'foo' => '{"foo" : "foo"}',
+                'bar' => '{"bar" : "bar"}',
+            ])
+        ]);
+        $result = $request->get(null, null, Sanitize::unserialize());
         $this->assertEquals(['foo' => 'foo'], $result['foo']);
         $this->assertEquals(['bar' => 'bar'], $result['bar']);
     }
 
     public function testUnserialize()
     {
-        $_GET['foo'] = ' <b>foo</b>     ';
-        $_GET['bar'] = '{"bar" : "bar"}';
-        $result = Request::get(null, null, Sanitize::attributes(['bar' => Sanitize::unserialize()]));
+        $request = $this->getRequest([
+            'queryString' => http_build_query([
+                'foo' => ' <b>foo</b>     ',
+                'bar' => '{"bar" : "bar"}',
+            ])
+        ]);
+        $result = $request->get(null, null, Sanitize::attributes(['bar' => Sanitize::unserialize()]));
         $this->assertEquals(' <b>foo</b>     ', $result['foo']);
         $this->assertEquals(['bar' => 'bar'], $result['bar']);
     }
 
     public function testNumeric()
     {
-        $_GET['foo'] = '<b>-5.5</b>';
-        $_GET['bar'] = '5.5';
-        $_GET['baz'] = '{"baz" : "5.6"}';
-        $result = Request::get(null, null, Sanitize::attributes(
+        $request = $this->getRequest([
+            'queryString' => http_build_query([
+                'foo' => '<b>-5.5</b>',
+                'bar' => '5.5',
+                'baz' => '{"baz" : "5.6"}'
+            ])
+        ]);
+        $result = $request->get(null, null, Sanitize::attributes(
             [
                 'foo' => Sanitize::call('strip_tags')->call('abs')->call('ceil'),
                 'bar' => Sanitize::call('floor'),
@@ -335,6 +360,7 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     public function testGetQueryString()
     {
+        $_SERVER['QUERY_STRING'] = 'page=1';
         $this->assertSame('page=1', $this->request->queryString);
     }
 
@@ -385,31 +411,33 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     public function testGetMethod()
     {
-        $this->assertSame('GET', $this->request->getMethod());
-        $this->assertTrue($this->request->isGet());
+        $request = $this->getRequest();
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertTrue($request->isGet());
 
-        $_POST[$this->request->methodParam] = 'POST';
-        $this->assertSame('POST', $this->request->getMethod());
-        $this->assertFalse($this->request->isGet());
-        $this->assertTrue($this->request->isPost());
+        $request = $this->getRequest();
+        $_POST[$request->methodParam] = 'POST';
+        $this->assertSame('POST', $request->getMethod());
+        $this->assertFalse($request->isGet());
+        $this->assertTrue($request->isPost());
     }
 
     public function testIsCORS()
     {
-        $this->assertFalse($this->request->isCORS());
+        $this->assertFalse($this->getRequest()->isCORS());
         $_SERVER['HTTP_ORIGIN'] = 'http://site.com';
-        $this->assertTrue($this->request->isCORS());
+        $this->assertTrue($this->getRequest()->isCORS());
     }
 
     public function testIsAjax()
     {
-        $this->assertFalse($this->request->isAjax());
+        $this->assertFalse($this->getRequest()->isAjax());
         $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
-        $this->assertTrue($this->request->isAjax());
+        $this->assertTrue($this->getRequest()->isAjax());
     }
 
-    protected function getRequest()
+    protected function getRequest($config = [])
     {
-        return new Request();
+        return new Request($config);
     }
 }
