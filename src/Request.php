@@ -96,7 +96,7 @@ class Request implements RequestInterface, ObjectInterface
      * Default locale.
      * @var string
      */
-    public $locale = 'en';
+    protected $locale = 'en';
     /**
      * Default sanitize rules.
      * @var Sanitize
@@ -105,8 +105,22 @@ class Request implements RequestInterface, ObjectInterface
 
     public function init()
     {
-        $this->locale = strtolower($this->locale);
         $this->isSelfDomain(true);
+    }
+
+    /**
+     * Sets a locale.
+     * @param callable|string $locale
+     * @return $this
+     */
+    public function setLocale($locale)
+    {
+        if (is_callable($locale)) {
+            $locale = call_user_func($locale, $this);
+        }
+        $this->locale = strtolower($locale);
+
+        return $this;
     }
 
     private $_method;
