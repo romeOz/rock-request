@@ -50,6 +50,8 @@ use rock\request\Request;
 
 ####Sanitize
 
+For sanitizing http-variables required install [Rock Sanitize](https://github.com/romeOz/rock-sanitize): `composer require romeoz/rock-sanitize`.
+ 
 ```php
 use rock\sanitize\Sanitize;
 
@@ -65,7 +67,9 @@ Request::get('page', null, Sanitize::removeTags()->trim()->positive()); // outpu
 Requirements
 -------------------
  * **PHP 5.4+**
- * For using sanitize required [Rock Sanitize](https://github.com/romeOz/rock-sanitize): `composer require romeoz/rock-sanitize`
+ * For sanitizing http-variables required [Rock Sanitize](https://github.com/romeOz/rock-sanitize): `composer require romeoz/rock-sanitize`
+
+>All unbolded dependencies is optional
 
 License
 -------------------
