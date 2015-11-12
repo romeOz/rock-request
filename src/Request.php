@@ -711,6 +711,8 @@ class Request implements RequestInterface, ObjectInterface
         return $this;
     }
 
+    private $_contentType;
+
     /**
      * Returns request content-type.
      *
@@ -724,14 +726,28 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getContentType()
     {
+        if (isset($this->_contentType)) {
+            return $this->_contentType;
+        }
         if (isset($_SERVER["CONTENT_TYPE"])) {
-            return $_SERVER["CONTENT_TYPE"];
+            return $this->_contentType = $_SERVER["CONTENT_TYPE"];
         } elseif (isset($_SERVER["HTTP_CONTENT_TYPE"])) {
             //fix bug https://bugs.php.net/bug.php?id=66606
-            return $_SERVER["HTTP_CONTENT_TYPE"];
+            return $this->_contentType = $_SERVER["HTTP_CONTENT_TYPE"];
         }
 
         return null;
+    }
+
+    /**
+     * Sets a content type.
+     * @param string $contentType
+     * @return $this
+     */
+    public function setContentType($contentType)
+    {
+        $this->_contentType = $contentType;
+        return $this;
     }
 
     private $_languages;
