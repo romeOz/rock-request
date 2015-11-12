@@ -228,7 +228,6 @@ class RequestTest extends \PHPUnit_Framework_TestCase
     public function testPreferredLanguage()
     {
         $request = $this->getRequest();
-        $request->setLocale('en');
         $request->acceptableLanguages = [];
         $this->assertEquals('en', $request->getPreferredLanguage());
 

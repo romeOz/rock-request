@@ -57,6 +57,8 @@ class Request implements RequestInterface, ObjectInterface
         ObjectTrait::__call as parentCall;
     }
 
+    const DEFAULT_LOCALE = 'en';
+
     /**
      * Checking referrer on allow domains
      * @var array
@@ -93,11 +95,6 @@ class Request implements RequestInterface, ObjectInterface
      */
     public $showScriptName = true;
     /**
-     * Default locale.
-     * @var string
-     */
-    protected $locale = 'en';
-    /**
      * Default sanitize rules.
      * @var Sanitize
      */
@@ -106,21 +103,6 @@ class Request implements RequestInterface, ObjectInterface
     public function init()
     {
         $this->isSelfDomain(true);
-    }
-
-    /**
-     * Sets a locale.
-     * @param callable|string $locale
-     * @return $this
-     */
-    public function setLocale($locale)
-    {
-        if (is_callable($locale)) {
-            $locale = call_user_func($locale, $this);
-        }
-        $this->locale = strtolower($locale);
-
-        return $this;
     }
 
     private $_method;
@@ -148,10 +130,12 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sets a http-method.
      * @param string $httpMethod request method, such as `GET`, `POST`, `HEAD`, `PUT`, `PATCH`, `DELETE`.
+     * @return $this
      */
     public function setMethod($httpMethod = 'GET')
     {
         $this->_method = $httpMethod;
+        return $this;
     }
 
     /**
@@ -184,9 +168,15 @@ class Request implements RequestInterface, ObjectInterface
         return $this->_schema;
     }
 
+    /**
+     * Sets a scheme.
+     * @param string $scheme
+     * @return $this
+     */
     public function setScheme($scheme)
     {
         $this->_schema = $scheme;
+        return $this;
     }
 
     private $_hostInfo;
@@ -231,9 +221,15 @@ class Request implements RequestInterface, ObjectInterface
         return $this->_host;
     }
 
+    /**
+     * Sets a host.
+     * @param string $host
+     * @return $this
+     */
     public function setHost($host)
     {
         $this->_host = $host;
+        return $this;
     }
 
     private $_url;
@@ -261,10 +257,12 @@ class Request implements RequestInterface, ObjectInterface
      * The URI must refer to the portion that is after {@see \rock\request\Request::getHostInfo()}.
      * Note that the URI should be URL-encoded.
      * @param string $url the request URI to be set
+     * @return $this
      */
     public function setUrl($url)
     {
         $this->_url = $url;
+        return $this;
     }
 
     /**
@@ -318,11 +316,14 @@ class Request implements RequestInterface, ObjectInterface
     }
 
     /**
+     * Sets a home url.
      * @param string $url the homepage URL
+     * @return $this
      */
     public function setHomeUrl($url)
     {
         $this->_homeUrl = $url;
+        return $this;
     }
 
     private $_baseUrl;
@@ -350,10 +351,12 @@ class Request implements RequestInterface, ObjectInterface
      * By default the URL is determined based on the entry script URL.
      * This setter is provided in case you want to change this behavior.
      * @param string $value the relative URL for the application
+     * @return $this
      */
     public function setBaseUrl($value)
     {
         $this->_baseUrl = $value;
+        return $this;
     }
 
     private $_scriptUrl;
@@ -393,10 +396,12 @@ class Request implements RequestInterface, ObjectInterface
      * This setter is provided in case the entry script URL cannot be determined
      * on certain Web servers.
      * @param string $value the relative URL for the application entry script.
+     * @return $this
      */
     public function setScriptUrl($value)
     {
         $this->_scriptUrl = '/' . trim($value, '/');
+        return $this;
     }
 
     private $_scriptFile;
@@ -436,6 +441,7 @@ class Request implements RequestInterface, ObjectInterface
      * This setter is provided in case a custom port is necessary for certain
      * server configurations.
      * @param integer $port port number.
+     * @return $this
      */
     public function setPort($port)
     {
@@ -443,6 +449,7 @@ class Request implements RequestInterface, ObjectInterface
             $this->_port = (int)$port;
             $this->_hostInfo = null;
         }
+        return $this;
     }
 
     private $_securePort;
@@ -469,6 +476,7 @@ class Request implements RequestInterface, ObjectInterface
      * This setter is provided in case a custom port is necessary for certain
      * server configurations.
      * @param integer $value port number.
+     * @return $this
      */
     public function setSecurePort($value)
     {
@@ -476,6 +484,7 @@ class Request implements RequestInterface, ObjectInterface
             $this->_securePort = (int)$value;
             $this->_hostInfo = null;
         }
+        return $this;
     }
 
     private $_queryParams;
@@ -507,10 +516,12 @@ class Request implements RequestInterface, ObjectInterface
      * @param array $params the request query parameters (name-value pairs)
      * @see getRawQueryParam()
      * @see getRawQueryParams()
+     * @return $this
      */
     public function setQueryParams($params)
     {
         $this->_queryParams = $params;
+        return $this;
     }
 
     /**
@@ -549,10 +560,12 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sets a part of the request URL.
      * @param $queryString
+     * @return $this
      */
     public function setQueryString($queryString)
     {
         $this->_queryString = $queryString;
+        return $this;
     }
 
     private $_rawBody;
@@ -573,10 +586,12 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sets the raw HTTP request body, this method is mainly used by test scripts to simulate raw HTTP requests.
      * @param $rawBody
+     * @return $this
      */
     public function setRawBody($rawBody)
     {
         $this->_rawBody = $rawBody;
+        return $this;
     }
 
     private $_bodyParams;
@@ -633,9 +648,15 @@ class Request implements RequestInterface, ObjectInterface
         return $this->_bodyParams;
     }
 
+    /**
+     * Sets a body params.
+     * @param array $params
+     * @return $this
+     */
     public function setBodyParams(array $params)
     {
         $this->_bodyParams = $params;
+        return $this;
     }
 
     private $_contentTypes;
@@ -682,10 +703,12 @@ class Request implements RequestInterface, ObjectInterface
      * be ordered by the preference level.
      * @see \rock\request\Request::getAcceptableContentTypes()
      * @see parseAcceptHeader()
+     * @return $this
      */
     public function setAcceptableContentTypes($value)
     {
         $this->_contentTypes = $value;
+        return $this;
     }
 
     /**
@@ -735,10 +758,12 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * @param array $value the languages that are acceptable by the end user. They should
      * be ordered by the preference level.
+     * @return $this
      */
     public function setAcceptableLanguages($value)
     {
         $this->_languages = $value;
+        return $this;
     }
 
     /**
@@ -836,7 +861,7 @@ class Request implements RequestInterface, ObjectInterface
     public function getPreferredLanguage(array $languages = [])
     {
         if (empty($languages)) {
-            return $this->locale;
+            return self::DEFAULT_LOCALE;
         }
         foreach (static::getAcceptableLanguages() as $acceptableLanguage) {
             $acceptableLanguage = str_replace('_', '-', strtolower($acceptableLanguage));
@@ -896,10 +921,12 @@ class Request implements RequestInterface, ObjectInterface
      *
      * This method is mainly provided for testing purpose.
      * @param string $value the path info of the current request
+     * @return $this
      */
     public function setPathInfo($value)
     {
         $this->_pathInfo = ltrim($value, '/');
+        return $this;
     }
 
     /**
@@ -1050,6 +1077,8 @@ class Request implements RequestInterface, ObjectInterface
         return (int)$_SERVER['SERVER_PORT'];
     }
 
+    private $_referrer;
+
     /**
      * Returns the URL referrer, null if not present.
      *
@@ -1057,8 +1086,24 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getReferrer()
     {
-        return isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : null;
+        if (isset($this->_referrer)) {
+            return $this->_referrer;
+        }
+        return $this->_referrer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : null;
     }
+
+    /**
+     * Sets a referrer url.
+     * @param string $referrer
+     * @return $this
+     */
+    public function setReferrer($referrer)
+    {
+        $this->_referrer = $referrer;
+        return $this;
+    }
+
+    private $_userAgent;
 
     /**
      * Returns the user agent, null if not present.
@@ -1067,7 +1112,21 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getUserAgent()
     {
-        return isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : null;
+        if (isset($this->_userAgent)) {
+            return $this->_userAgent;
+        }
+        return $this->_userAgent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : null;
+    }
+
+    /**
+     * Sets a user agent.
+     * @param string $userAgent
+     * @return $this
+     */
+    public function setUserAgent($userAgent)
+    {
+        $this->_userAgent = $userAgent;
+        return $this;
     }
 
     /**
@@ -1091,10 +1150,12 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sets a user IP address.
      * @param string $ip
+     * @return $this
      */
     public function setUserIP($ip)
     {
         $this->_userIP = $ip;
+        return $this;
     }
 
     /**
@@ -1119,10 +1180,12 @@ class Request implements RequestInterface, ObjectInterface
     /**
      * Sets a user host name.
      * @param string $host
+     * @return $this
      */
     public function setUserHost($host)
     {
         $this->_userHost = $host;
+        return $this;
     }
 
     /**
@@ -1236,9 +1299,15 @@ class Request implements RequestInterface, ObjectInterface
         return $this->_isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
     }
 
+    /**
+     * Sets a AJAX.
+     * @param boolean $is
+     * @return $this
+     */
     public function setIsAjax($is)
     {
         $this->_isAjax = $is;
+        return $this;
     }
 
     private $_isPjax;
@@ -1256,9 +1325,15 @@ class Request implements RequestInterface, ObjectInterface
         return $this->_isPjax = $this->isAjax() && !empty($_SERVER['HTTP_X_PJAX']);
     }
 
+    /**
+     * Sets a Pjax.
+     * @param boolean $is
+     * @return $this
+     */
     public function setIsPjax($is)
     {
         $this->_isPjax = $is;
+        return $this;
     }
 
     private $_isFlash;
@@ -1278,9 +1353,15 @@ class Request implements RequestInterface, ObjectInterface
             (stripos($_SERVER['HTTP_USER_AGENT'], 'Shockwave') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'Flash') !== false);
     }
 
+    /**
+     * Sets a Flash.
+     * @param boolean $is
+     * @return $this
+     */
     public function setIsFlash($is)
     {
         $this->_isFlash = $is;
+        return $this;
     }
 
     private $_isCORS;
@@ -1298,9 +1379,15 @@ class Request implements RequestInterface, ObjectInterface
         return $this->_isCORS = !empty($_SERVER['HTTP_ORIGIN']);
     }
 
+    /**
+     * Sets a CORS.
+     * @param boolean $is
+     * @return $this
+     */
     public function setIsCORS($is)
     {
         $this->_isCORS = $is;
+        return $this;
     }
 
     public function __call($name, $arguments)
@@ -1324,7 +1411,6 @@ class Request implements RequestInterface, ObjectInterface
         }
         return $this->getQueryParam($name, $default);
     }
-
 
     protected function rawPostInternal($name = null, $default = null)
     {
