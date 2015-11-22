@@ -39,13 +39,22 @@ Quick Start
 ```php
 use rock\request\Request;
 
-// example url: http://site.com/foo/?page=1
+// example url: http://site.com/foo/?page=1&foo[bar]=test
 
 // returns relative URL
-(new Request)->getUrl(); // output: /foo/?page=1
+(new Request)->getUrl(); // output: /foo/?page=1&foo[bar]=test
 
 // returns host
 (new Request)->getHost(); // output: site.com
+
+// returns query params
+(new Request)->rawGet(); // output: ['page' => 1, 'foo' => ['bar' => 'test']]
+
+// returns query params as multiple
+(new Request)->rawGet(['foo', 'bar']); // output: test
+
+// alternative approach
+(new Request)->rawGet('foo.bar'); // output: test
 ```
 
 ####Sanitize

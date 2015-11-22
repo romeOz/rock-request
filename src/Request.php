@@ -5,6 +5,7 @@ use rock\base\Alias;
 use rock\base\BaseException;
 use rock\base\ObjectInterface;
 use rock\base\ObjectTrait;
+use rock\helpers\ArrayHelper;
 use rock\helpers\Helper;
 use rock\helpers\Instance;
 use rock\log\Log;
@@ -534,9 +535,7 @@ class Request implements RequestInterface, ObjectInterface
      */
     public function getQueryParam($name, $default = null)
     {
-        $params = $this->getQueryParams();
-
-        return isset($params[$name]) ? $params[$name] : $default;
+        return ArrayHelper::getValue($this->getQueryParams(), $name, $default);
     }
 
     /**
@@ -1435,7 +1434,7 @@ class Request implements RequestInterface, ObjectInterface
         if (!isset($name)) {
             return $params;
         }
-        return isset($params[$name]) ? $params[$name] : $default;
+        return ArrayHelper::getValue($params, $name, $default);
     }
 
     /**

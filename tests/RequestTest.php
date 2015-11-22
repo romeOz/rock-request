@@ -185,6 +185,20 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(['baz' => 6], $result['baz']);
     }
 
+    public function testMultipleParams()
+    {
+        $request = $this->getRequest([
+            'queryString' => 'foo[bar]=<b>test</b>'
+        ]);
+        $this->assertSame(['bar'=>'<b>test</b>'],$request->rawGet('foo'));
+        $this->assertSame('<b>test</b>',$request->rawGet('foo.bar'));
+        $this->assertSame('<b>test</b>',$request->rawGet(['foo', 'bar']));
+        $this->assertSame('unknown',$request->rawGet(['foo', 'bar', 'baz'], 'unknown'));
+
+        // sanitize
+        $this->assertSame('test',$request->get(['foo', 'bar']));
+    }
+
     public function testAsJson()
     {
         $_SERVER["CONTENT_TYPE"] = 'application/json; charset=UTF-8';
